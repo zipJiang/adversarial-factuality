@@ -1,0 +1,5 @@
+task:
+  type: "generation"
+  topic_path: "data/list_of_examples_to_test_on.txt"
+  output_path: ${OUTPUT_PATH}
+  prompt: ${PROMPT}

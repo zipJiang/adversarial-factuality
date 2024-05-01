@@ -1,0 +1,16 @@
+task:
+  type: "score-generation"
+  scorer:
+    type: "decompose"
+    decomposer:
+      type: "factscore"
+      example_path: "data/factscore_decomp_examples.txt"
+    base_scorer:
+      type: "llm-support"
+      db_path: "db/enwiki-20230401.db"
+      cache_dir: ".cache/"
+    aggregator:
+      type: "factscore"
+      gamma: 10
+  input_path: ${OUTPUT_PATH}
+  output_path: ${SCORE_PATH}

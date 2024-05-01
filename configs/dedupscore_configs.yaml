@@ -1,0 +1,27 @@
+task:
+  type: "score-generation"
+  scorer:
+    type: "decompose"
+    decomposer:
+      type: "deduplicated"
+      base_decomposer:
+        type: "factscore"
+        example_path: "data/factscore_decomp_examples.txt"
+      sentence_level_checkworthy_scorer:
+        type: "llm-checkworthy-general"
+      claim_level_checkworthy_scorer:
+        type: "llm-checkworthy-specific"
+      entailer:
+        type: "default"
+        model_name: "ynie/roberta-large-snli_mnli_fever_anli_R1_R2_R3-nli"
+        max_length: 256
+        internal_batch_size: 8
+    base_scorer:
+      type: "llm-support"
+      db_path: "db/enwiki-20230401.db"
+      cache_dir: ".cache/"
+    aggregator:
+      type: "factscore"
+      gamma: 10
+  input_path: ${OUTPUT_PATH}
+  output_path: ${SCORE_PATH}
