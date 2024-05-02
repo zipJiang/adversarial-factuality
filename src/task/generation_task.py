@@ -12,12 +12,15 @@ from .task import Task
 
 @Task.register("generation")
 class GenerationTask(Task):
-    def __init__(self, topic_path: Text, output_path: Text, prompt: Text):
+    def __init__(self, topic_path: Text, output_path: Text, prompt: Text, model_name: Text, base_url: Text, api_key: Text):
         """ """
         super().__init__()
 
         self.prompt = prompt
         self.output_path = output_path
+        self.model_name = model_name
+        self.base_url = base_url
+        self.api_key = api_key
 
         with open(topic_path, "r", encoding="utf-8") as file_:
             self.topics = [
@@ -27,14 +30,15 @@ class GenerationTask(Task):
 
         # TODO: process bad outputs
         self.agent = ChatInterface(
-            model_name="gpt-3.5-turbo",
+            model_name=model_name,
             batch_size=4,
             max_tokens=1024,
-            system_message="",
-            input_variables=["input"],
+            system_message=None,
             instruction_prompt=[],
             input_example_prompt=self.prompt,
             output_parser=lambda x: x,
+            base_url=base_url,
+            api_key=api_key
         )
 
     @overrides

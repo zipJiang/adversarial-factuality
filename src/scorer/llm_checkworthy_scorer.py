@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 import string
-from typing import Text, Dict, List, Union
+from typing import Text, Dict, List, Union, Optional
 import os
 import re
 from overrides import overrides
@@ -28,9 +28,15 @@ class LLMGeneralCheckWorthyScorer(Scorer):
 
     def __init__(
         self,
-        in_batch_num: int = 4
+        model_name: Text,
+        in_batch_num: int = 4,
+        base_url: Optional[Text] = None,
+        api_key: Optional[Text] = None
     ):
         super().__init__()
+        self._model_name = model_name
+        self._base_url = base_url
+        self._api_key = api_key
 
         def _parse_input(instance: LLMQueryInstance) -> Dict[Text, Text]:
             """Generate the input dictionary for the LLM."""
@@ -46,16 +52,17 @@ class LLMGeneralCheckWorthyScorer(Scorer):
         self._in_batch_num = in_batch_num
 
         self._agent = ChatInterface(
-            model_name="gpt-3.5-turbo",
+            model_name=self._model_name,
             batch_size=4,
-            max_tokens=10,
-            system_message="You are a helpful factchecker assistant.",
-            input_variables=["text"],
+            max_tokens=32,
+            system_message="You are a helpful factchecker assistant." if self._base_url is None else None,
             instruction_prompt=[],
             input_example_prompt=CHECKWORTHY_PROMPT,
             output_example_prompt="",
             input_parser=_parse_input,
             output_parser=_parse_output,
+            base_url=self._base_url,
+            api_key=self._api_key,
         )
 
     @overrides
@@ -88,7 +95,7 @@ class LLMGeneralCheckWorthyScorer(Scorer):
         for i in range(0, len(instances), self._in_batch_num):
             chunked_instances.append(chunking(instances[i:i + self._in_batch_num]))
 
-        chunked_results = self._agent(chunked_instances)
+        chunked_results = self._agent(chunked_instances, silence=True)
         separated = []
         
         # print(chunked_instances[0])
@@ -112,9 +119,15 @@ class LLMSpecificCheckWorthyScorer(Scorer):
 
     def __init__(
         self,
+        model_name: Text,
+        base_url: Optional[Text] = None,
+        api_key: Optional[Text] = None
     ):
 
         super().__init__()
+        self._model_name = model_name
+        self._base_url = base_url
+        self._api_key = api_key
 
         def _parse_input(instance: LLMQueryInstance) -> Dict[Text, Text]:
             """Generate the input dictionary for the LLM."""
@@ -125,16 +138,17 @@ class LLMSpecificCheckWorthyScorer(Scorer):
             return 1.0 if abs(float(output.strip()) - 1.0) < 1e-6 else 0.0
 
         self._agent = ChatInterface(
-            model_name="gpt-3.5-turbo",
+            model_name=self._model_name,
             batch_size=4,
             max_tokens=10,
-            system_message="You are a helpful factchecker assistant.",
-            input_variables=["sentence"],
+            system_message="You are a helpful factchecker assistant." if self._base_url is None else None,
             instruction_prompt=[],
             input_example_prompt=SPECIFY_CHECKWORTHY_CATEGORY_PROMPT,
             output_example_prompt="",
             input_parser=_parse_input,
             output_parser=_parse_output,
+            base_url=self._base_url,
+            api_key=self._api_key,
         )
 
     @overrides
@@ -156,4 +170,4 @@ class LLMSpecificCheckWorthyScorer(Scorer):
             for idx, instance in enumerate(instances)
         ]
 
-        return self._agent(input_instances)
+        return self._agent(input_instances, silence=True)

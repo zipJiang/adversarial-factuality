@@ -5,7 +5,7 @@ atomic facts.
 
 import spacy
 from overrides import overrides
-from typing import List, Text
+from typing import List, Text, Optional
 from langchain_interface.instances import LLMQueryInstance
 from langchain_interface.example_selectors import ConstantExampleSelector
 from langchain_interface.interfaces import ChatInterface
@@ -18,13 +18,24 @@ class FActScoreDecomposer(Decomposer):
     
     __NAME__ = "factscore"
     
-    def __init__(self, example_path: Text, nlp_model_name: Text = "en_core_web_sm", sentencize: bool = True):
+    def __init__(
+        self,
+        model_name: Text,
+        example_path: Text,
+        nlp_model_name: Text = "en_core_web_sm",
+        sentencize: bool = True,
+        base_url: Optional[Text] = None,
+        api_key: Optional[Text] = None
+    ):
         """In general, this decomposer runs a sentence splitter,
         and then a atomic fact extractor to get the atomic facts.
         """
 
         super().__init__()
         self._example_path = example_path
+        self._model_name = model_name
+        self._base_url = base_url
+        self._api_key = api_key
         self._nlp = spacy.load(nlp_model_name, disable=["ner", "parser"])
         self._nlp.add_pipe("sentencizer")
 
@@ -53,16 +64,17 @@ class FActScoreDecomposer(Decomposer):
                 self._example_selector.add_example(example)
 
         self._agent = ChatInterface(
-            model_name="gpt-3.5-turbo",
+            model_name=self._model_name,
             batch_size=4,
             max_tokens=512,
-            system_message="",
-            input_variables=["input"],
+            system_message=None,
             instruction_prompt=[],
             input_example_prompt="Please breakdown the following sentence into atomic facts: {input}",
             output_example_prompt="{output}",
             output_parser=_split_atomic_facts,
             example_selector=self._example_selector,
+            base_url=self._base_url,
+            api_key=self._api_key
         )
 
     @overrides
@@ -81,8 +93,8 @@ class FActScoreDecomposer(Decomposer):
         outputs = []
         
         if not self._sentencize:
-            outputs = self._agent([LLMQueryInstance(id=0, input=instance_text)])
+            outputs = self._agent([LLMQueryInstance(id=0, input=instance_text)], silence=True)
         else:
-            outputs = self._agent([LLMQueryInstance(id=sidx, input=sentence.text) for sidx, sentence in enumerate(self._nlp(instance_text).sents)])
+            outputs = self._agent([LLMQueryInstance(id=sidx, input=sentence.text) for sidx, sentence in enumerate(self._nlp(instance_text).sents)], silence=True)
         
         return [ScorerInstance(text=atom, topic=topic) for otp in outputs for atom in otp['parsed']]

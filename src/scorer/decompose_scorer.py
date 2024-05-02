@@ -36,7 +36,6 @@ class DecomposeScorer(Scorer):
         """
         
         decomposed_instances: List[ScorerInstance] = self.decomposer(instance)
-        print([item.text for item in decomposed_instances])
         scores = [self.base_scorer(dt, return_raw=True) for dt in decomposed_instances]
 
         parsed_scores = [s['parsed'] for s in scores]

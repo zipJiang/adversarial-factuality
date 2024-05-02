@@ -2,6 +2,7 @@
 
 import json
 import os
+from tqdm import tqdm
 from overrides import overrides
 from typing import Text
 from .task import Task
@@ -32,7 +33,7 @@ class ScoreGenerationTask(Task):
             
         results = []
         
-        for item in data:
+        for item in tqdm(data):
             score = self.scorer(ScorerInstance(
                 text=item['output']['parsed'],
                 topic=item['topic'],

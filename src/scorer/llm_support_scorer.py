@@ -3,7 +3,7 @@
 
 from dataclasses import dataclass, field
 import string
-from typing import Text, Dict, List, Union
+from typing import Text, Dict, List, Union, Optional
 import os
 from overrides import overrides
 from langchain_interface.instances import LLMQueryInstance
@@ -26,12 +26,19 @@ class LLMSupportScorer(Scorer):
 
     def __init__(
         self,
+        model_name: Text,
         db_path: Text,
-        cache_dir: Text
+        cache_dir: Text,
+        base_url: Optional[Text] = None,
+        api_key: Optional[Text] = None
     ):
         """
         """
         super().__init__()
+        
+        self._model_name = model_name
+        self._base_url = base_url
+        self._api_key = api_key
         
         def _parse_input(instance: FActScoreQueryInstance) -> Dict[Text, Text]:
             """Generate the input dictionary for the LLM.
@@ -65,11 +72,10 @@ class LLMSupportScorer(Scorer):
             return is_supported
         
         self._agent = ChatInterface(
-            model_name="gpt-3.5-turbo",
-            batch_size=1,
+            model_name=self._model_name,
+            batch_size=4,
             max_tokens=10,
-            system_message="",
-            input_variables=["input", "topic", "parsed_passages"],
+            system_message=None,
             instruction_prompt=[],
             input_example_prompt="".join([
                 "Answer the question about {topic} based on the given context.\n\n",
@@ -79,6 +85,8 @@ class LLMSupportScorer(Scorer):
             output_example_prompt="",
             input_parser=_parse_input,
             output_parser=_parse_output,
+            base_url=self._base_url,
+            api_key=self._api_key
         )
         
         self._db_path = db_path
@@ -106,6 +114,6 @@ class LLMSupportScorer(Scorer):
             input=instance.text
         )
         
-        result = self._agent([input_instance])[0]
+        result = self._agent([input_instance], silence=True)[0]
         
         return result
