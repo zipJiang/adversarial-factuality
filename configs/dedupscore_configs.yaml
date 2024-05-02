@@ -2,6 +2,7 @@ task:
   type: "score-generation"
   scorer:
     type: "decompose"
+    abstention_detector: "factscore"
     decomposer:
       type: "deduplicated"
       base_decomposer:
