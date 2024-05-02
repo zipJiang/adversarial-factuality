@@ -6,11 +6,18 @@ task:
       type: "deduplicated"
       base_decomposer:
         type: "factscore"
+        model_name: "gpt-3.5-turbo"
         example_path: "data/factscore_decomp_examples.txt"
       sentence_level_checkworthy_scorer:
         type: "llm-checkworthy-general"
+        model_name: "mistralai/Mistral-7B-Instruct-v0.2"
+        base_url: "http://localhost:9871/v1"
+        api_key: "token-abc123"
       claim_level_checkworthy_scorer:
         type: "llm-checkworthy-specific"
+        model_name: "mistralai/Mistral-7B-Instruct-v0.2"
+        base_url: "http://localhost:9871/v1"
+        api_key: "token-abc123"
       entailer:
         type: "default"
         model_name: "ynie/roberta-large-snli_mnli_fever_anli_R1_R2_R3-nli"
@@ -20,6 +27,9 @@ task:
       type: "llm-support"
       db_path: "db/enwiki-20230401.db"
       cache_dir: ".cache/"
+      model_name: "mistralai/Mistral-7B-Instruct-v0.2"
+      base_url: "http://localhost:9871/v1"
+      api_key: "token-abc123"
     aggregator:
       type: "factscore"
       gamma: 10
