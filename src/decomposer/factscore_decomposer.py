@@ -69,7 +69,7 @@ class FActScoreDecomposer(Decomposer):
             max_tokens=512,
             system_message=None,
             instruction_prompt=[],
-            input_example_prompt="Please breakdown the following sentence into atomic facts: {input}",
+            input_example_prompt="Please breakdown the following sentence into independent facts: {input}",
             output_example_prompt="{output}",
             output_parser=_split_atomic_facts,
             example_selector=self._example_selector,

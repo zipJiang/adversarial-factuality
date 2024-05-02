@@ -5,7 +5,7 @@ import spacy
 import numpy as np
 from dataclasses import dataclass
 from overrides import overrides
-from typing import List, Text, Tuple, Dict
+from typing import List, Text, Tuple, Dict, Any
 from ..entailer.entailer import Entailer, EntailerInstance
 from scipy.optimize import milp, Bounds, LinearConstraint
 from langchain_interface.instances import LLMQueryInstance
@@ -64,6 +64,7 @@ class DeduplicatedDecomposer(Decomposer):
         
         # filter out duplicated claims (on sentence-level)
         filtered_decomposed = []
+        claim_to_sent: Dict[Text, List[Dict[Text, Any]]] = {}
         extant_claims = set()
 
         if self._sentencize:
@@ -74,7 +75,7 @@ class DeduplicatedDecomposer(Decomposer):
         checkworthiness = self._sentence_level_checkworthy_scorer(sent_seqs, return_raw=True)
         checkworthiness = [c['parsed'] for c in checkworthiness]
         
-        for idx, (sent, sent_checkworthy) in enumerate(zip(sent_seqs, checkworthiness)):
+        for sent, sent_checkworthy in zip(sent_seqs, checkworthiness):
             # TODO: optimize the threshold selection
             if sent_checkworthy < 0.5:
                 # This sentence is not checkworthy in general
@@ -86,23 +87,27 @@ class DeduplicatedDecomposer(Decomposer):
             # filtered_decomposed = []
             # extant_claims = set()
             
-            for decomposed_instance in decomposed:
+            for didx, decomposed_instance in enumerate(decomposed):
                 if decomposed_instance.text not in extant_claims:
                     extant_claims.add(decomposed_instance.text)
                     filtered_decomposed.append(decomposed_instance)
+                if decomposed_instance.text not in claim_to_sent:
+                    claim_to_sent[decomposed_instance.text] = []
+                claim_to_sent[decomposed_instance.text].append({"from_sent_idx": sent.text, "in_sent_claim_idx": didx, "sent": sent.text})
             
         claim_checkworthiness = self._claim_level_checkworthy_scorer(filtered_decomposed)
         all_instances = [
             DedupScoreInstance(
                 text=decomposed_instance.text,
                 topic=decomposed_instance.topic,
-                in_sent_claim_idx=claim_idx,
-                from_sent_idx=idx,
-                sent=sent.text,
+                # in_sent_claim_idx=claim_idx,
+                # from_sent_idx=idx,
+                # sent=sent,
                 sent_checkworthy=sent_checkworthy,
                 claim_checkworthy=claim_checkworthy,
+                **sent_dict
             )
-            for claim_idx, (decomposed_instance, claim_checkworthy) in enumerate(zip(filtered_decomposed, claim_checkworthiness))
+            for decomposed_instance, claim_checkworthy in zip(filtered_decomposed, claim_checkworthiness) for sent_dict in claim_to_sent[decomposed_instance.text]
         ]
                 
         # we already get all the instances from the base decomposer,
@@ -126,7 +131,7 @@ class DeduplicatedDecomposer(Decomposer):
             for instance, entailed in zip(instances, sent_ent_results)
             if entailed > 0.5
         ]
-
+        
         # create pairwise entailment instances
         # if not in the result is 1
         finding_pair: Dict[Tuple[int, int], int] = {}
@@ -136,19 +141,22 @@ class DeduplicatedDecomposer(Decomposer):
             for j in range(len(instances)):
                 if i == j:
                     continue
-                finding_pair[(i, j)] = len(pairwise_entailment_instances)
-                pairwise_entailment_instances.append(
-                    EntailerInstance(
-                        premise=instances[i].text,
-                        hypothesis=instances[j].text
+                elif instances[i].text == instances[j].text:
+                    finding_pair[(i, j)] = -1  # automatic entailment
+                else:
+                    finding_pair[(i, j)] = len(pairwise_entailment_instances)
+                    pairwise_entailment_instances.append(
+                        EntailerInstance(
+                            premise=instances[i].text,
+                            hypothesis=instances[j].text
+                        )
                     )
-                )
                 
         pairwise_entailment_scoring = self._entailer(pairwise_entailment_instances)
         
         intra_ent_mat = np.array([
             [
-                pairwise_entailment_scoring[finding_pair[(i, j)]] > 0.5 if i != j else False
+                (pairwise_entailment_scoring[finding_pair[(i, j)]] > 0.5 if finding_pair[(i, j)] >= 0 else True) if i != j else False
                 for j in range(len(instances))
             ]
             for i in range(len(instances))

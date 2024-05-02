@@ -57,6 +57,7 @@ class Entailer(Registrable):
             return_tensors="pt",
             add_special_tokens=True,
             return_attention_mask=True,
+            return_token_type_ids=True,
         )
 
         return {

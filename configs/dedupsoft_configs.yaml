@@ -26,12 +26,14 @@ task:
           type: "soft-entailer"
           model_name: "Zhengping/roberta-large-unli"
           max_length: 256
-          internal_batch_size: 8
+          internal_batch_size: 16
       entailer:
         type: "default"
-        model_name: "ynie/roberta-large-snli_mnli_fever_anli_R1_R2_R3-nli"
+        # model_name: "ynie/roberta-large-snli_mnli_fever_anli_R1_R2_R3-nli"
+        # model_name: "MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli"
+        model_name: "MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli"
         max_length: 256
-        internal_batch_size: 8
+        internal_batch_size: 16
     base_scorer:
       type: "llm-support"
       db_path: "db/enwiki-20230401.db"
