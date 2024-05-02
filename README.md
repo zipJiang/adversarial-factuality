@@ -11,7 +11,7 @@ python scripts/run_task.py CONFIG_PATH [--cache-path CACHE_PATH]
 ### Configuration
 
 
-See some examples in the `configs` directory. For example, `configs/dedupsoft_configs.yaml` runs a local model based FActScore alternative.
+See some examples in the `configs` directory. For example, `configs/dedupsoft_configs.yaml` runs a local model based FActScore alternative. To properly run the scorer you might need to download the wikipedia dump from [FActScore](https://github.com/shmsw25/FActScore)
 
 
 ### Sanity Check
