@@ -8,7 +8,7 @@ task:
       base_decomposer:
         type: "factscore"
         model_name: "gpt-3.5-turbo"
-        example_path: "data/factscore_decomp_examples.txt"
+        example_path: "factscore_decomp_examples.txt"
       sentence_level_checkworthy_scorer:
         type: "llm-checkworthy-general"
         model_name: "mistralai/Mistral-7B-Instruct-v0.2"

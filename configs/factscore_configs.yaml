@@ -8,7 +8,7 @@ task:
       model_name: "mistralai/Mistral-7B-Instruct-v0.2"
       base_url: "http://localhost:9871/v1"
       api_key: "token-abc123"
-      example_path: "data/factscore_decomp_examples.txt"
+      example_path: "factscore_decomp_examples.txt"
     base_scorer:
       type: "llm-support"
       db_path: "db/enwiki-20230401.db"

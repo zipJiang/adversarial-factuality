@@ -6,7 +6,7 @@ task:
     decomposer:
       type: "factscore"
       model_name: "gpt-3.5-turbo"
-      example_path: "data/factscore_decomp_examples.txt"
+      example_path: "factscore_decomp_examples.txt"
     base_scorer:
       type: "llm-support"
       db_path: "db/enwiki-20230401.db"
