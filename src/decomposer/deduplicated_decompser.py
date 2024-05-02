@@ -62,42 +62,48 @@ class DeduplicatedDecomposer(Decomposer):
 
         all_instances = []
         
+        # filter out duplicated claims (on sentence-level)
+        filtered_decomposed = []
+        extant_claims = set()
+
         if self._sentencize:
             sent_seqs = [ScorerInstance(text=sent.text, topic=instance.topic) for sent in self._nlp(instance.text).sents]
-            checkworthiness = self._sentence_level_checkworthy_scorer(sent_seqs, return_raw=True)
-            checkworthiness = [c['parsed'] for c in checkworthiness]
-            
-            for idx, (sent, sent_checkworthy) in enumerate(zip(sent_seqs, checkworthiness)):
-                # TODO: optimize the threshold selection
-                if sent_checkworthy < 0.5:
-                    # This sentence is not checkworthy in general
-                    continue
-                # decomposing_instance = ScorerInstance(sent, topic=instance.topic)
-                decomposed: List[ScorerInstance] = self._base_decomposer(sent)
+        else:
+            sent_seqs = [instance]
 
-                # filter out duplicated claims (on sentence-level)
-                filtered_decomposed = []
-                extant_claims = set()
-                
-                for decomposed_instance in decomposed:
-                    if decomposed_instance.text not in extant_claims:
-                        extant_claims.add(decomposed_instance.text)
-                        filtered_decomposed.append(decomposed_instance)
-                
-                claim_checkworthiness = self._claim_level_checkworthy_scorer(filtered_decomposed)
-                
-                all_instances.extend([
-                    DedupScoreInstance(
-                        text=decomposed_instance.text,
-                        topic=decomposed_instance.topic,
-                        in_sent_claim_idx=claim_idx,
-                        from_sent_idx=idx,
-                        sent=sent.text,
-                        sent_checkworthy=sent_checkworthy,
-                        claim_checkworthy=claim_checkworthy,
-                    )
-                    for claim_idx, (decomposed_instance, claim_checkworthy) in enumerate(zip(filtered_decomposed, claim_checkworthiness))
-                ])
+        checkworthiness = self._sentence_level_checkworthy_scorer(sent_seqs, return_raw=True)
+        checkworthiness = [c['parsed'] for c in checkworthiness]
+        
+        for idx, (sent, sent_checkworthy) in enumerate(zip(sent_seqs, checkworthiness)):
+            # TODO: optimize the threshold selection
+            if sent_checkworthy < 0.5:
+                # This sentence is not checkworthy in general
+                continue
+            # decomposing_instance = ScorerInstance(sent, topic=instance.topic)
+            decomposed: List[ScorerInstance] = self._base_decomposer(sent)
+
+            # filter out duplicated claims (on sentence-level)
+            # filtered_decomposed = []
+            # extant_claims = set()
+            
+            for decomposed_instance in decomposed:
+                if decomposed_instance.text not in extant_claims:
+                    extant_claims.add(decomposed_instance.text)
+                    filtered_decomposed.append(decomposed_instance)
+            
+        claim_checkworthiness = self._claim_level_checkworthy_scorer(filtered_decomposed)
+        all_instances = [
+            DedupScoreInstance(
+                text=decomposed_instance.text,
+                topic=decomposed_instance.topic,
+                in_sent_claim_idx=claim_idx,
+                from_sent_idx=idx,
+                sent=sent.text,
+                sent_checkworthy=sent_checkworthy,
+                claim_checkworthy=claim_checkworthy,
+            )
+            for claim_idx, (decomposed_instance, claim_checkworthy) in enumerate(zip(filtered_decomposed, claim_checkworthiness))
+        ]
                 
         # we already get all the instances from the base decomposer,
         # now we will run the deduplication
