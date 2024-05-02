@@ -15,7 +15,13 @@ export SCORE_DIR=data/scores/local_models/
 #     python scripts/run_task.py configs/factscore_configs.yaml \
 #     --cache-path $CACHE_PATH
 
-export SCORE_PATH=${SCORE_DIR}gpt3.5-factscore.json
+# export SCORE_PATH=${SCORE_DIR}gpt3.5-factscore.json
+# export CACHE_PATH=.cache/.gpt-3.5-turbo-cache.db
+# conda run -p .env --no-capture-output \
+#     python scripts/run_task.py configs/factscore_gpt3.5_configs.yaml \
+#     --cache-path $CACHE_PATH
+
+export SCORE_PATH=${SCORE_DIR}gpt3.5-factscore-abstention-detection.json
 export CACHE_PATH=.cache/.gpt-3.5-turbo-cache.db
 conda run -p .env --no-capture-output \
     python scripts/run_task.py configs/factscore_gpt3.5_configs.yaml \

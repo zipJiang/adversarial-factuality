@@ -2,6 +2,7 @@ task:
   type: "score-generation"
   scorer:
     type: "decompose"
+    abstention_detector: "factscore"
     decomposer:
       type: "factscore"
       model_name: "mistralai/Mistral-7B-Instruct-v0.2"

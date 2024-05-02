@@ -6,6 +6,7 @@ individual facts and scoring each fact individually.
 
 from registrable import Lazy
 from langchain_interface.interfaces import ChatInterface
+from ..abstention_detector.abstention_detector import AbstentionDetector
 from ..aggregator.aggregator import Aggregator
 from ..decomposer.decomposer import Decomposer
 from ..utils.instances import ScorerInstance
@@ -21,11 +22,13 @@ class DecomposeScorer(Scorer):
 
     def __init__(
         self,
+        abstention_detector: AbstentionDetector,
         decomposer: Decomposer,
         base_scorer: Scorer,
         aggregator: Aggregator
     ):
         super().__init__()
+        self.abstention_detector = abstention_detector
         self.decomposer = decomposer
         self.base_scorer = base_scorer
         self.aggregator = aggregator
@@ -34,6 +37,12 @@ class DecomposeScorer(Scorer):
     def _score(self, instance: ScorerInstance) -> Dict[Text, Union[Text, float]]:
         """
         """
+        
+        if self.abstention_detector(instance.text):
+            return {
+                "parsed": 0.0,
+                "raw": f"[[Abstained Response Detected]]: {instance.text}"
+            }
         
         decomposed_instances: List[ScorerInstance] = self.decomposer(instance)
         scores = [self.base_scorer(dt, return_raw=True) for dt in decomposed_instances]
