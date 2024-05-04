@@ -1,0 +1,7 @@
+task:
+  type: "filter-required-entities"
+  popqa_path: "data/popQA.tsv"
+  wikientity_path: "data/datasets--nkandpa2--pretraining_entities/snapshots/550b4b11a5ac147bf261ff150a65b98b01469b3f/wikipedia_entity_map.npz"
+  wikipedia_dump_path: "db/enwiki-20230401.db"
+  protected_entity_path: "data/list_of_examples_complete.txt"
+  output_dir: "data/entity_filtering/"
