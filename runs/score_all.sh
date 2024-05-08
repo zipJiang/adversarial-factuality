@@ -1,11 +1,11 @@
 #!/bin/bash
 
 
-export OUTPUT_PATH=data/outputs/generation_opt.json
+export OUTPUT_PATH=data/outputs/generation_opt_sub.json
 export CACHE_PATH=.cache/.mistral-7b-cache.db
 export SCORE_DIR=data/scores/local_models/
 
-export SCORE_PATH=${SCORE_DIR}mistral-soft-deberta-large.json
+export SCORE_PATH=${SCORE_DIR}mistral-soft-deberta-base-parallel.json
 conda run -p .env --no-capture-output \
     python scripts/run_task.py configs/dedupsoft_configs.yaml \
     --cache-path $CACHE_PATH

@@ -1,8 +1,9 @@
 """ A score used to evaluate the checkworthiness of a sentence (possibly atomic facts). """
 
+import asyncio
 from dataclasses import dataclass, field
 import string
-from typing import Text, Dict, List, Union, Optional
+from typing import AsyncGenerator, Coroutine, Text, Dict, List, Union, Optional, Tuple
 import os
 import re
 from overrides import overrides
@@ -53,7 +54,7 @@ class LLMGeneralCheckWorthyScorer(Scorer):
 
         self._agent = ChatInterface(
             model_name=self._model_name,
-            batch_size=4,
+            batch_size=16,
             max_tokens=32,
             system_message="You are a helpful factchecker assistant." if self._base_url is None else None,
             instruction_prompt=[],
@@ -95,7 +96,7 @@ class LLMGeneralCheckWorthyScorer(Scorer):
         for i in range(0, len(instances), self._in_batch_num):
             chunked_instances.append(chunking(instances[i:i + self._in_batch_num]))
 
-        chunked_results = self._agent(chunked_instances, silence=True)
+        chunked_results = self._agent(chunked_instances, silence=False)
         separated = []
         
         # print(chunked_instances[0])
@@ -109,7 +110,28 @@ class LLMGeneralCheckWorthyScorer(Scorer):
                 })
 
         return separated
+    
+    @overrides
+    async def _async_batch_score(self, instances: List[ScorerInstance]) -> AsyncGenerator[Tuple[int, Dict[Text, Union[Text, float]]], None]:
+        """We can utilize the async_call function of the interface to make async calls.
+        """
+        
+        chunking = lambda xs: LLMQueryInstance(
+            id=0,
+            input="[" + ', '.join(['"{}"'.format(x.text) for x in xs]) + "]",
+        )
+        
+        chunked_instances = []
 
+        for i in range(0, len(instances), self._in_batch_num):
+            chunked_instances.append(chunking(instances[i:i + self._in_batch_num]))
+            
+        async for index, result in self._agent.async_call(chunked_instances, silence=True):
+            for idx, r in enumerate(result['parsed']):
+                yield index * len(chunked_instances) + idx, {
+                    "raw": result['raw'] + f"[{idx}]",
+                    "parsed": r
+                }
 
 @Scorer.register("llm-checkworthy-specific")
 class LLMSpecificCheckWorthyScorer(Scorer):
@@ -139,7 +161,7 @@ class LLMSpecificCheckWorthyScorer(Scorer):
 
         self._agent = ChatInterface(
             model_name=self._model_name,
-            batch_size=4,
+            batch_size=16,
             max_tokens=10,
             system_message="You are a helpful factchecker assistant." if self._base_url is None else None,
             instruction_prompt=[],
@@ -170,4 +192,15 @@ class LLMSpecificCheckWorthyScorer(Scorer):
             for idx, instance in enumerate(instances)
         ]
 
-        return self._agent(input_instances, silence=True)
+        return self._agent(input_instances, silence=False)
+
+
+    @overrides
+    async def _async_batch_score(self, instances: List[ScorerInstance]) -> AsyncGenerator[Tuple[int, Dict[Text, Union[Text, float]]], None]:
+        input_instances = [
+            LLMQueryInstance(id=idx, input=instance.text)
+            for idx, instance in enumerate(instances)
+        ]
+        
+        async for index, result in self._agent.async_call(input_instances, silence=True):
+            yield index, result

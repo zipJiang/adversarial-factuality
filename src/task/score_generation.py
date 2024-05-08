@@ -33,16 +33,19 @@ class ScoreGenerationTask(Task):
             
         results = []
         
-        for item in tqdm(data):
-            score = self.scorer(ScorerInstance(
-                text=item['output']['parsed'],
-                topic=item['topic'],
-            ))
+        inputs = [ScorerInstance(text=item['output']['parsed'], topic=item['topic']) for item in tqdm(data)]
+            # score = self.scorer(ScorerInstance(
+            #     text=item['output']['parsed'],
+            #     topic=item['topic'],
+            # ))
             
-            results.append({
-                **item,
-                "score": score
-            })
+            # results.append({
+            #     **item,
+            #     "score": score
+            # })
+            
+        results = self.scorer(inputs)
+        results = [{**item, "score": result} for result, item in zip(results, data)]
 
         with open(self.output_path, "w", encoding='utf-8') as file_:
             json.dump(results, file_, indent=4)

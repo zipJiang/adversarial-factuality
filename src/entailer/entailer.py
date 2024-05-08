@@ -31,14 +31,18 @@ class Entailer(Registrable):
         max_length: int = 512,
     ):
         super().__init__()
-        self._model = AutoModelForSequenceClassification.from_pretrained(model_name).to(
-            device
-        )
+        self._model_name = model_name
         self._device = device
-        self._model.eval()
-        self._tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
+        self._model = None
+        self._tokenizer = None
         self._internal_batch_size = internal_batch_size
         self._max_length = max_length
+        
+    def _load_model(self):
+        self._model = AutoModelForSequenceClassification.from_pretrained(
+            self._model_name,
+        ).to(self._device)
+        self._tokenizer = AutoTokenizer.from_pretrained(self._model_name)
 
     def _collate_fn(
         self, instances: List[EntailerInstance]
@@ -73,13 +77,21 @@ class Entailer(Registrable):
     def __call__(
         self,
         instances: List[EntailerInstance],
+        silent: bool = False
     ) -> List[float]:
-        """ """
+        """ Lazy load the model and tokenizer to be friendly to
+        parallel processing in our case.
+        """
+
+        if self._model is None or self._tokenizer is None:
+            self._load_model()
+
         return paginate_func(
             items=instances,
             page_size=self._internal_batch_size,
             func=self._call_batch,
             combination=lambda x: [xxx for xx in x for xxx in xx],
+            silent=silent
         )
 
     def _call_batch(self, instances: List[EntailerInstance]) -> List[float]:

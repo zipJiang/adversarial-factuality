@@ -8,7 +8,7 @@ from .aggregator import Aggregator, _T
 
 
 @Aggregator.register("factscore")
-class FactScoreAggregator(Aggregator):
+class FActScoreAggregator(Aggregator):
     def __init__(
         self,
         gamma: int = 10

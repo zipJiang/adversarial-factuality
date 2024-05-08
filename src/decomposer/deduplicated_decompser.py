@@ -5,7 +5,7 @@ import spacy
 import numpy as np
 from dataclasses import dataclass
 from overrides import overrides
-from typing import List, Text, Tuple, Dict, Any
+from typing import List, Text, Tuple, Dict, Any, Union
 from ..entailer.entailer import Entailer, EntailerInstance
 from scipy.optimize import milp, Bounds, LinearConstraint
 from langchain_interface.instances import LLMQueryInstance
@@ -68,7 +68,7 @@ class DeduplicatedDecomposer(Decomposer):
         extant_claims = set()
 
         if self._sentencize:
-            sent_seqs = [ScorerInstance(text=sent.text, topic=instance.topic) for sent in self._nlp(instance.text).sents]
+            sent_seqs = [ScorerInstance(text=sent, topic=instance.topic) for sent in self._to_sents(instance.text)]
         else:
             sent_seqs = [instance]
 
@@ -118,6 +118,146 @@ class DeduplicatedDecomposer(Decomposer):
         
         return self._deduplicate(all_instances)
     
+    @overrides
+    def _batch_decompose(self, instances: List[ScorerInstance]) -> List[List[ScorerInstance]]:
+        """
+        """
+
+        if self._sentencize:
+            # need to first breakdown into sentences
+            sent_tuples = [(idx, sent) for idx, instance in enumerate(instances) for sent in self._to_sents(instance.text)]
+        else:
+            sent_tuples = [(idx, instance.text) for idx, instance in enumerate(instances)]
+            
+        sent_instances = [ScorerInstance(text=sent, topic=instances[idx].topic) for idx, sent in sent_tuples]
+
+        checkworthiness = self._sentence_level_checkworthy_scorer(sent_instances, return_raw=True)
+        checkworthiness = [c['parsed'] for c in checkworthiness]
+        
+        # filter down to those checkworthy
+        sent_tuples = [(idx, ckwt, sent) for (idx, sent), ckwt in zip(sent_tuples, checkworthiness) if ckwt > 0.5]
+        sent_instances = [ScorerInstance(text=sent, topic=instances[idx].topic) for idx, _, sent in sent_tuples]
+        
+        atomic_facts = self._base_decomposer(sent_instances)
+        
+        # group atomic facts based on  sentence origins
+        claim_inputs = []
+        for sidx, (stuple, fact_sets) in enumerate(zip(sent_tuples, atomic_facts)):
+            claim_inputs.extend([(stuple[0], sidx, aidx, atom) for aidx, atom in enumerate(fact_sets)])
+            
+        claim_checkworthiness = self._claim_level_checkworthy_scorer([c[3] for c in claim_inputs])
+        
+        # create inputs to deduplication tupled with the instance indices
+        ccw_inputs = [
+            (
+                ci[0],
+                DedupScoreInstance(
+                    text=ci[3].text,
+                    topic=ci[3].topic,
+                    in_sent_claim_idx=ci[2],
+                    from_sent_idx=ci[1],
+                    sent=sent_tuples[ci[1]][2],
+                    sent_checkworthy=sent_tuples[ci[1]][1],
+                    claim_checkworthy=ccw
+                )
+            ) for ci, ccw in zip(claim_inputs, claim_checkworthiness)]
+        
+        deduplicated = self._batch_deduplicate(ccw_inputs)
+        
+        # group them by the original instance index
+        grouped_deduplicated = {}
+        for idx, instance in deduplicated:
+            if idx not in grouped_deduplicated:
+                grouped_deduplicated[idx] = []
+            grouped_deduplicated[idx].append(instance)
+            
+        return [
+            grouped_deduplicated[idx] if idx in grouped_deduplicated else []
+            for idx in range(len(instances))
+        ]
+        
+    def _batch_deduplicate(self, instance_tuples: List[Tuple[int, DedupScoreInstance]]) -> List[Tuple[int, DedupScoreInstance]]:
+        """
+        """
+        
+        # group instances by the first integer from the tuple
+        sent_ent_results = self._entailer([EntailerInstance(premise=instance.sent, hypothesis=instance.text) for _, instance in instance_tuples])
+        
+        grouped_instances: Dict[Text, Dict[Text, Dict[Text, Union[int, float]]]] = {}
+
+        for iidx, (er, (idx, instance)) in enumerate(zip(sent_ent_results, instance_tuples)):
+            if idx not in grouped_instances:
+                grouped_instances[idx] = {}
+            if instance.text not in grouped_instances[idx]:
+                grouped_instances[idx][instance.text] = {
+                    "score": 0.0,
+                    "from_index": iidx
+                }
+            
+            grouped_instances[idx][instance.text] = {
+                "score": max(grouped_instances[idx][instance.text]['score'], er),
+                "from_index": iidx if er > grouped_instances[idx][instance.text]['score'] else grouped_instances[idx][instance.text]['from_index']
+            }
+            
+        grouped_texts = {
+            idx: [
+                (score_dict['from_index'], text)
+                for text, score_dict in instances.items() if score_dict['score'] > 0.5
+            ]
+            for idx, instances in grouped_instances.items()
+        }
+        
+        finding_pair_dicts = {}
+        pairwise_entailment_inputs = []
+        
+        for idx, texts in grouped_texts.items():
+            for i in range(len(texts)):
+                for j in range(len(texts)):
+                    if i == j:
+                        continue
+                    if idx not in finding_pair_dicts:
+                        finding_pair_dicts[idx] = {}
+                    finding_pair_dicts[idx][(i, j)] = len(pairwise_entailment_inputs)
+                    pairwise_entailment_inputs.append(EntailerInstance(premise=texts[i][1], hypothesis=texts[j][1]))
+
+        parwise_entailment_scoring = self._entailer(pairwise_entailment_inputs)
+        
+        # create intra_entailment_matrix for each of the group
+        intra_entailment_matrices = {}
+        
+        for idx, texts in grouped_texts.items():
+            intra_entailment_matrices[idx] = np.array([
+                [
+                    parwise_entailment_scoring[finding_pair_dicts[idx][(i, j)]] > 0.5 if i != j else False
+                    for j in range(len(texts))
+                ]
+                for i in range(len(texts))
+            ], dtype=np.int16)
+            
+        # solve the MILP problem for each group
+        MILP_results = {}
+        
+        for idx, texts in grouped_texts.items():
+            selection, result = self._solve_milp(
+                pairwise_entailment=intra_entailment_matrices[idx],
+                weighting=np.array([instance_tuples[sidx][1].sent_checkworthy * instance_tuples[sidx][1].claim_checkworthy for sidx, _ in texts], np.float32)
+            )
+
+            non_zero_selection_indices = np.nonzero(selection)[0].tolist()
+            MILP_results[idx] = non_zero_selection_indices
+            
+        # fetch back results using MILP_results
+        return_results = []
+        for idx, texts in grouped_texts.items():
+            return_results.extend([instance_tuples[texts[selected_idx][0]] for selected_idx in MILP_results[idx]])
+            
+        return return_results
+        
+    def _to_sents(self, text: Text) -> List[Text]:
+        """ """
+
+        return [sentence.text for sentence in self._nlp(text).sents]
+    
     def _deduplicate(self, instances: List[DedupScoreInstance]) -> List[DedupScoreInstance]:
         """
         """
@@ -166,57 +306,7 @@ class DeduplicatedDecomposer(Decomposer):
         # TODO: check whether this setting is optimal
         weighting = np.array([instance.sent_checkworthy * instance.claim_checkworthy for instance in instances], np.float32)
 
-        # solve the MILP problem
-        def solve_milp(
-            pairwise_entailment: np.ndarray,
-            weighting: np.ndarray,
-        ) -> Tuple[np.ndarray, float]:
-            """
-            """
-            
-            if pairwise_entailment.size == 0:
-                return np.array([], np.int16), 0.0
-            
-            or_mat = np.tril(
-                np.bitwise_or(
-                    pairwise_entailment,
-                    np.transpose(pairwise_entailment)
-                ),
-            )
-            
-            indices = np.nonzero(or_mat)
-
-            # TODO: add logging information
-            
-            constraints = np.zeros(
-                (len(indices[0]), len(weighting)),
-                dtype=np.float32
-            )
-            
-            constraints[np.arange(len(indices[0])), indices[0]] = 1
-            constraints[np.arange(len(indices[1])), indices[1]] = 1
-            
-            res = milp(
-                c=-weighting,
-                integrality=np.ones_like(weighting),
-                bounds=Bounds(
-                    lb=np.zeros_like(weighting) - 1e-8,
-                    ub=np.ones_like(weighting) + 1e-8
-                ),
-                constraints=(
-                    LinearConstraint(
-                        A=constraints,
-                        ub=np.ones(len(indices[0])) + 1e-8,
-                    ),
-                )
-            )
-
-            selection = res.x
-            result = res.fun
-
-            return selection, result
-        
-        selection, result = solve_milp(
+        selection, result = self._solve_milp(
             pairwise_entailment=intra_ent_mat,
             weighting=weighting
         )
@@ -224,3 +314,55 @@ class DeduplicatedDecomposer(Decomposer):
         non_zero_selection_indices = np.nonzero(selection)[0].tolist()
         
         return [instances[index] for index in non_zero_selection_indices]
+    
+    # solve the MILP problem
+    def _solve_milp(
+        self,
+        pairwise_entailment: np.ndarray,
+        weighting: np.ndarray,
+    ) -> Tuple[np.ndarray, float]:
+        """
+        """
+        
+        if pairwise_entailment.size == 0:
+            return np.array([], np.int16), 0.0
+        
+        or_mat = np.tril(
+            np.bitwise_or(
+                pairwise_entailment,
+                np.transpose(pairwise_entailment)
+            ),
+        )
+        
+        indices = np.nonzero(or_mat)
+
+        # TODO: add logging information
+        
+        constraints = np.zeros(
+            (len(indices[0]), len(weighting)),
+            dtype=np.float32
+        )
+        
+        constraints[np.arange(len(indices[0])), indices[0]] = 1
+        constraints[np.arange(len(indices[1])), indices[1]] = 1
+        
+        res = milp(
+            c=-weighting,
+            integrality=np.ones_like(weighting),
+            bounds=Bounds(
+                lb=np.zeros_like(weighting) - 1e-8,
+                ub=np.ones_like(weighting) + 1e-8
+            ),
+            constraints=(
+                LinearConstraint(
+                    A=constraints,
+                    ub=np.ones(len(indices[0])) + 1e-8,
+                ),
+            )
+        )
+
+        selection = res.x
+        result = res.fun
+
+        return selection, result
+    
