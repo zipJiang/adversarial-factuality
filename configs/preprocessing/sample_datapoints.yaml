@@ -1,0 +1,4 @@
+task:
+  type: "sample-datapoints"
+  dump_path: "data/entity_filtering/stats_checked_against_protected_entities.pkl"
+  output_path: "data/entity_filtering/sampled_datapoints.txt"

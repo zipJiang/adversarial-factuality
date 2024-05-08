@@ -12,6 +12,7 @@ import numpy as np
 import pickle as pkl
 
 from rank_bm25 import BM25Okapi
+from typing import List, Dict, Text, Any
 
 SPECIAL_SEPARATOR = "####SPECIAL####SEPARATOR####"
 MAX_LENGTH = 256
@@ -143,6 +144,7 @@ class Retriever(object):
         embed_cache_path,
         retrieval_type="gtr-t5-large",
         batch_size=None,
+        device: Text = "cuda:0",
     ):
         # self.db = db
         self.db = DocDB(db_path=db_path)
@@ -156,13 +158,17 @@ class Retriever(object):
         self.load_cache()
         self.add_n = 0
         self.add_n_embed = 0
+        
+        self._device = device
 
     def load_encoder(self):
         from sentence_transformers import SentenceTransformer
 
         encoder = SentenceTransformer("sentence-transformers/" + self.retrieval_type)
-        encoder = encoder.cuda()
+        encoder = encoder.to(self._device)
         encoder = encoder.eval()
+        # encoder = encoder.cuda()
+        # encoder = encoder.eval()
         self.encoder = encoder
         assert self.batch_size is not None
 
@@ -235,6 +241,76 @@ class Retriever(object):
         indices = np.argsort(-scores)[:k]
         return [passages[i] for i in indices]
 
+    def get_gtr_passages_batched(
+        self,
+        topics: List[Text],
+        retrieval_queries: List[Text],
+        chunks_of_passages: List[List[Dict[Text, Any]]],
+        k: int
+    ) -> Dict[Text, List[Dict[Text, Text]]]:
+        """ """
+
+        if not topics:
+           return [] 
+        
+        if self.encoder is None:
+            self.load_encoder()
+            
+        # we don't have to cache here, as encoded cache
+        # should already been cached with results (assuming k is fixed).
+        
+        # flattened_raw_psgs = [
+        #     psg
+        #     for passages in chunks_of_passages
+        #     for psg in passages
+        # ]
+        # flattened_psgs = [
+        #     psg["title"] + " " + psg["text"].replace("<s>", "").replace("</s>", "")
+        #     for psg in flattened_raw_psgs
+        # ]
+        
+        flattened_raw_psgs = []
+        flattened_psgs = []
+
+        # we select a subset of the passages to encode
+        topics_already_seen = {}
+        for t, chunk in zip(topics, chunks_of_passages):
+            if t not in topics_already_seen:
+                topics_already_seen[t] = (len(flattened_raw_psgs), len(chunk) + len(flattened_raw_psgs))
+                flattened_raw_psgs.extend(chunk)
+                flattened_psgs.extend([
+                    psg["title"] + " " + psg["text"].replace("<s>", "").replace("</s>", "")
+                    for psg in chunk
+                ])
+        
+        topic_vectors = self.encoder.encode(
+            sentences=retrieval_queries,
+            batch_size=self.batch_size,
+            device=self._device
+        )
+        
+        passage_vectors = self.encoder.encode(
+            sentences=flattened_psgs,
+            batch_size=self.batch_size,
+            device=self._device
+        )
+
+        relations = np.inner(topic_vectors, passage_vectors)
+        
+        return_vals = []
+        for rel, topic in zip(relations, topics):
+            pstarts, pends = topics_already_seen[topic]
+            indices = np.argsort(-rel[pstarts:pends], axis=0)[:k]
+            cum_ind = [pstarts + i for i in indices]
+            return_vals.append([
+                flattened_raw_psgs[i]
+                for i in cum_ind
+            ])
+            
+        assert len(return_vals) == len(retrieval_queries)
+            
+        return return_vals
+
     def get_passages(self, topic, question, k):
         retrieval_query = topic + " " + question.strip()
         cache_key = topic + "#" + retrieval_query
@@ -253,3 +329,48 @@ class Retriever(object):
             self.add_n += 1
 
         return self.cache[cache_key]
+
+    def get_passages_batched(self, topics: List[Text], questions: List[Text], k: int) -> List[List[Dict[Text, Any]]]:
+        """We optimize this by running the retrieval in parallel.
+        """
+        
+        # generate cache key for all topics
+        queries = [' '.join((topic, question.strip())) for topic, question in zip(topics, questions)]
+        cache_keys = [topic + "#" + query for topic, query in zip(topics, queries)]
+        
+        result_dict = {}
+        
+        topics_need_to_check = []
+        queries_need_to_check = []
+        passages_need_to_check = []
+
+        for topic, key in zip(topics, cache_keys):
+            if key in self.cache:
+                result_dict[key] = self.cache[key]
+            else:
+                passages = self.db.get_text_from_title(topic)
+                # if len(passages) <= k:
+                #     result_dict[key] = passages
+                # else:
+                topics_need_to_check.append(topic)
+                queries_need_to_check.append(key)
+                passages_need_to_check.append(passages)
+                    
+        if self.retrieval_type != 'bm25':
+            filtered_passage_results = self.get_gtr_passages_batched(
+                topics=topics_need_to_check,
+                retrieval_queries=queries_need_to_check,
+                chunks_of_passages=passages_need_to_check,
+                k=k
+            )
+        else:
+            filtered_passage_results = []
+            raise NotImplementedError("Batched BM25 is not implemented yet.")
+        
+        for key, result in zip(queries_need_to_check, filtered_passage_results):
+            # assert topic not in result_dict, f"Topic {topic} is already in the result_dict."
+            assert key not in result_dict, f"Key {key} is already in the result_dict."
+            result_dict[key] = result
+            self.cache[key] = result
+
+        return [result_dict[key] for key in cache_keys]

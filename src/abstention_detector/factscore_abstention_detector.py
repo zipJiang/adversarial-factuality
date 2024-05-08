@@ -9,7 +9,7 @@ from .abstention_detector import AbstentionDetector
 
 
 @AbstentionDetector.register("factscore")
-class FactScoreAbstentionDetector(AbstentionDetector):
+class FActScoreAbstentionDetector(AbstentionDetector):
     def __init__(self):
         super().__init__()
         

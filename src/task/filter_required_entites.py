@@ -160,6 +160,40 @@ def check_if_human_in_batch(entity_ids):
     return [entity_id for entity_id, is_human in response.items() if is_human]
 
 
+def get_nationality_in_batch(entity_ids):
+    """
+    """
+    
+    sparql = SPARQLWrapper("https://query.wikidata.org/sparql")
+    values_clausese = " ".join([f"wd:{entity_id}" for entity_id in entity_ids])
+    
+    query = f"""
+    SELECT ?item ?itemLabel ?nationalityLabel ?continentLabel WHERE {{
+        VALUES ?item {{ {values_clausese} }}
+        ?item wdt:P27 ?nationality.
+        ?nationality wdt:P30 ?continent.
+        SERVICE wikibase:label {{ bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en". }}
+    }}
+    """
+    
+    sparql.setQuery(query)
+    sparql.setReturnFormat(JSON)
+    results = sparql.query().convert()
+    
+    nationalities = {}
+    
+    for result in results['results']['bindings']:
+        entity_id = result["item"]["value"].split("/")[-1]
+        nationality = result['nationalityLabel']['value']
+        continent = result['continentLabel']['value']
+        nationalities[entity_id] = {
+            "nationality": nationality,
+            "continent": continent,
+        }
+        
+    return  {entity_id: nationalities.get(entity_id, {"nationality": None, "continent": None}) for entity_id in entity_ids}
+
+
 def get_wikipedia_pages_in_batch(entity_ids):
     sparql = SPARQLWrapper("https://query.wikidata.org/sparql")
 
@@ -546,6 +580,51 @@ class FilterRequiredEntities(Task):
                 os.path.join(self._output_dir, "stats_with_wikipedia_titles.pkl"), "rb"
             ) as f:
                 stats = pickle.load(f)
+                
+        # Now try to attach nationality and part of items in the stats
+        
+        def _attach_nationalities(stats):
+            """
+            """
+            entity_ids = list(stats.keys())
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                futures = [
+                    executor.submit(
+                        get_nationality_in_batch,
+                        entity_ids[kidx : kidx + __INTERNAL_QUERY_BATCH_SIZE__],
+                    )
+                    for kidx in range(0, len(entity_ids), __INTERNAL_QUERY_BATCH_SIZE__)
+                ]
+
+                for future in tqdm(
+                    as_completed(futures),
+                    total=len(futures),
+                    desc="Attaching nationalities.",
+                ):
+                    try:
+                        pages = future.result()
+                        for entity_id, nationality_dict in pages.items():
+                            stats[entity_id].update(nationality_dict)
+                    except Exception as e:
+                        logger.error(f"Error: {e}")
+
+            return stats
+        
+        if not os.path.exists(
+            os.path.join(self._output_dir, "stats_with_nationalities.pkl")
+        ):
+            stats = _attach_nationalities(stats)
+            with open(os.path.join(
+                self._output_dir, "stats_with_nationalities.pkl"), "wb"
+            ) as f:
+                pickle.dump(stats, f)
+
+        else:
+            with open(os.path.join(
+                self._output_dir, "stats_with_nationalities.pkl"), "rb"
+            ) as f:
+                stats = pickle.load(f)
+        
 
         # Now try to find the entities that are findable in the wikipedia dump
         # if not os.path.exists(os.path.join(self._output_dir), "stats_with_wikipedia_dump_availabilities.pkl"):
