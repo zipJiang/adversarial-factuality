@@ -239,6 +239,7 @@ class Retriever(object):
         )[0]
         scores = np.inner(query_vectors, passage_vectors)
         indices = np.argsort(-scores)[:k]
+        # print(retrieval_query, indices)
         return [passages[i] for i in indices]
 
     def get_gtr_passages_batched(
@@ -301,6 +302,7 @@ class Retriever(object):
         for rel, topic in zip(relations, topics):
             pstarts, pends = topics_already_seen[topic]
             indices = np.argsort(-rel[pstarts:pends], axis=0)[:k]
+            # print(retrieval_query, indices, "batched")
             cum_ind = [pstarts + i for i in indices]
             return_vals.append([
                 flattened_raw_psgs[i]
@@ -341,10 +343,11 @@ class Retriever(object):
         result_dict = {}
         
         topics_need_to_check = []
+        cache_keys_need_to_check = []
         queries_need_to_check = []
         passages_need_to_check = []
 
-        for topic, key in zip(topics, cache_keys):
+        for topic, query, key in zip(topics, queries, cache_keys):
             if key in self.cache:
                 result_dict[key] = self.cache[key]
             else:
@@ -353,9 +356,10 @@ class Retriever(object):
                 #     result_dict[key] = passages
                 # else:
                 topics_need_to_check.append(topic)
-                queries_need_to_check.append(key)
+                queries_need_to_check.append(query)
+                cache_keys_need_to_check.append(key)
                 passages_need_to_check.append(passages)
-                    
+                
         if self.retrieval_type != 'bm25':
             filtered_passage_results = self.get_gtr_passages_batched(
                 topics=topics_need_to_check,
@@ -367,7 +371,7 @@ class Retriever(object):
             filtered_passage_results = []
             raise NotImplementedError("Batched BM25 is not implemented yet.")
         
-        for key, result in zip(queries_need_to_check, filtered_passage_results):
+        for key, result in zip(cache_keys_need_to_check, filtered_passage_results):
             # assert topic not in result_dict, f"Topic {topic} is already in the result_dict."
             assert key not in result_dict, f"Key {key} is already in the result_dict."
             result_dict[key] = result

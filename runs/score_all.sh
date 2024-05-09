@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-export OUTPUT_PATH=data/outputs/generation_opt_sub.json
+export OUTPUT_PATH=data/outputs/generation_opt.json
 export CACHE_PATH=.cache/.mistral-7b-cache.db
 export SCORE_DIR=data/scores/local_models/
 
