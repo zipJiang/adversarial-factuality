@@ -17,6 +17,11 @@ from ..utils.prompts import CHECKWORTHY_PROMPT, SPECIFY_CHECKWORTHY_CATEGORY_PRO
 
 
 # TODO: Potentially need access to logits to make soft scorings.
+
+@dataclass(frozen=True, eq=True)
+class BatchedLLMQueryInstance(LLMQueryInstance):
+    num_instances: int = field(default=1)
+
 @Scorer.register("llm-checkworthy-general")
 class LLMGeneralCheckWorthyScorer(Scorer):
     """In the original paper this scorer is
@@ -86,9 +91,10 @@ class LLMGeneralCheckWorthyScorer(Scorer):
         # ]
 
         # we can chunk items into batches
-        chunking = lambda xs: LLMQueryInstance(
+        chunking = lambda xs: BatchedLLMQueryInstance(
             id=0,
             input="[" + ', '.join(['"{}"'.format(x.text) for x in xs]) + "]",
+            num_instances=len(xs)
         )
         
         chunked_instances = []
@@ -102,8 +108,15 @@ class LLMGeneralCheckWorthyScorer(Scorer):
         # print(chunked_instances[0])
         # print(chunked_results)
         
-        for result in chunked_results:
-            for idx, r in enumerate(result['parsed']):
+        for ridx, result in enumerate(chunked_results):
+            parsed = result['parsed']
+            original_chunk = chunked_instances[ridx]
+            if len(parsed) != original_chunk.num_instances:
+                # We'll need to duplicate the last judgments,
+                # as sometimes the llm gives less judgments
+                # than the number of instances
+                parsed = (parsed + [parsed[-1]] * (original_chunk.num_instances))[:original_chunk.num_instances]
+            for idx, r in enumerate(parsed):
                 separated.append({
                     "raw": result['raw'] + f"[{idx}]",
                     "parsed": r

@@ -114,7 +114,7 @@ class FActScoreDecomposer(Decomposer):
                     inputs.append(LLMQueryInstance(id=idx, input=sentence.text))
 
         outputs = self._agent(inputs, silence=False)
-
+        
         # now since we are getting all outputs
         results = []
         for ipt, opt in zip(inputs, outputs):

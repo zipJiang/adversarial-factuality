@@ -9,7 +9,7 @@ The return value should be a list of strings, where each string selects from ["Y
 "No" means that the text is not checkworthy, it might be an opinion, a question, or others.
 For example, if a user call checkworthy(["I think Apple is a good company.", "Friends is a great TV series.", "Are you sure Preslav is a professor in MBZUAI?", "The Stanford Prison Experiment was conducted in the basement of Encina Hall.", "As a language model, I can't provide these info."])
 You should return a python list without any other words, 
-["No", "Yes", "No", "Yes", "No"]
+["No", "Yes", "No", "Yes", "No"], with the same order and length as the input list.
 Note that your response will be passed to the python interpreter, SO NO OTHER WORDS!
 
 checkworthy({texts})

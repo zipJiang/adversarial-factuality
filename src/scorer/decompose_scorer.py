@@ -80,11 +80,13 @@ class DecomposeScorer(Scorer):
         # now we have a list of instances that need processing
         input_instances = [instances[idx] for idx in instance_needs_process]
         decomposed_instance_chunks: List[List[ScorerInstance]] = self.decomposer(input_instances)
-
+        
         # extend them to tuples with index
         decomposed_instance_tuples = [(idx, dt) for idx, dts in zip(instance_needs_process, decomposed_instance_chunks) for dt in dts]
         raw_scores = self.base_scorer([dt[1] for dt in decomposed_instance_tuples], return_raw=True)
         # parsed_scores = [s['parsed'] for s in scores]
+        
+        # print(decomposed_instance_tuples)
         
         # grouped parsed scores by index
         grouped_parsed_scores = {}
