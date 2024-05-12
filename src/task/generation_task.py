@@ -12,7 +12,7 @@ from .task import Task
 
 @Task.register("generation")
 class GenerationTask(Task):
-    def __init__(self, topic_path: Text, output_path: Text, prompt: Text, model_name: Text, base_url: Text, api_key: Text):
+    def __init__(self, topic_path: Text, output_path: Text, prompt: Text, model_name: Text, base_url: Text, api_key: Text, do_sample: bool = False):
         """ """
         super().__init__()
 
@@ -31,7 +31,9 @@ class GenerationTask(Task):
         # TODO: process bad outputs
         self.agent = ChatInterface(
             model_name=model_name,
-            batch_size=4,
+            batch_size=128,
+            # top_p=0.95, TODO: top_p has bug and is not supported; fix this!
+            temperature=1 if do_sample else 0,
             max_tokens=1024,
             system_message=None,
             instruction_prompt=[],

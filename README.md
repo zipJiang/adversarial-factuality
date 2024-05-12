@@ -61,3 +61,6 @@ Since there were only ~200 datapoints in the FActScore dataset, we run the filte
     // ...
 ]
 ```
+
+### Tips
+When do_sample=True, must disable cache! Use --no-cache argument in run_task.py
