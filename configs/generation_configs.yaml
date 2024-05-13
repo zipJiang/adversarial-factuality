@@ -1,8 +1,9 @@
 task:
   type: "generation"
-  topic_path: "data/list_of_last_20_examples.txt"
+  topic_path: ${TOPIC_PATH}
   model_name: "mistralai/Mistral-7B-Instruct-v0.2"
   base_url: "http://localhost:9871/v1"
   api_key: "token-abc123"
+  do_sample: true
   output_path: ${OUTPUT_PATH}
   prompt: ${PROMPT}
