@@ -346,11 +346,13 @@ class Retriever(object):
         cache_keys_need_to_check = []
         queries_need_to_check = []
         passages_need_to_check = []
+        
+        cnc_set = set()
 
         for topic, query, key in zip(topics, queries, cache_keys):
             if key in self.cache:
                 result_dict[key] = self.cache[key]
-            else:
+            elif key not in cnc_set:
                 passages = self.db.get_text_from_title(topic)
                 # if len(passages) <= k:
                 #     result_dict[key] = passages
@@ -359,6 +361,7 @@ class Retriever(object):
                 queries_need_to_check.append(query)
                 cache_keys_need_to_check.append(key)
                 passages_need_to_check.append(passages)
+                cnc_set.add(key)
                 
         if self.retrieval_type != 'bm25':
             filtered_passage_results = self.get_gtr_passages_batched(
