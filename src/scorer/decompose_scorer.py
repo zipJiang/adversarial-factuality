@@ -89,10 +89,8 @@ class DecomposeScorer(Scorer):
         # print(decomposed_instance_tuples)
         
         # grouped parsed scores by index
-        grouped_parsed_scores = {}
+        grouped_parsed_scores = {idx: [] for idx in range(len(instances))}
         for (idx, di), score_dict in zip(decomposed_instance_tuples, raw_scores):
-            if idx not in grouped_parsed_scores:
-                grouped_parsed_scores[idx] = []
             grouped_parsed_scores[idx].append({**score_dict, **asdict(di)})
             
         for idx, score_dicts in grouped_parsed_scores.items():
