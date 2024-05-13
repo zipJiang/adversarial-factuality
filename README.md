@@ -62,12 +62,11 @@ Since there were only ~200 datapoints in the FActScore dataset, we run the filte
 ]
 ```
 
-
 ### Gotchas
 
 #### Why is the batchified result different?
 
 One thing that leads to inconsistency is that we use batched queries for the checkworthiness. This might leads to different queries being batched together, and thus the result might be different. To mitigate this, try to set `in_batch_num = 1` for the `sentence_level_checkworthy_scorer` in the config.
 
-#### Cache issues
+#### Cache issue
 When do_sample=True, must disable cache! Use --no-cache argument in run_task.py
