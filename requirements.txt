@@ -85,7 +85,7 @@ pytz==2024.1
 PyYAML==6.0.1
 rank-bm25==0.2.2
 regex==2023.12.25
-registrable @ git+ssh://git@github.com/zipJiang/registrable.git@ce95fc9b42487f5061e3e155ccb0f100295850ad
+registrable @ git+ssh://git@github.com/zipJiang/registrable.git #@ce95fc9b42487f5061e3e155ccb0f100295850ad
 requests==2.31.0
 safetensors==0.4.3
 scikit-learn==1.4.2
