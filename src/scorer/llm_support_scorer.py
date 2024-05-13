@@ -117,3 +117,26 @@ class LLMSupportScorer(Scorer):
         result = self._agent([input_instance], silence=True)[0]
         
         return result
+    
+    @overrides
+    def _batch_score(self, instances: List[ScorerInstance]) -> List[Dict[Text, Union[Text, float]]]:
+        """
+        """
+        
+        inputs = []
+        # first convert the input instance into the FActScoreQueryInstance
+        # by retrieve from the database
+        for instance in instances:
+            passages = self._retriever.get_passages(instance.topic, instance.text, 5)
+            
+            input_instance = FActScoreQueryInstance(
+                id=0,
+                topic=instance.topic,
+                passages=passages,
+                input=instance.text
+            )
+            inputs.append(input_instance)
+        
+        result = self._agent(inputs, silence=True)
+        
+        return result

@@ -13,7 +13,7 @@ from ..utils.instances import ScorerInstance
 from typing import Text, List, Dict, Union
 from overrides import overrides
 from .scorer import Scorer
-
+import asyncio
 
 @Scorer.register("decompose")
 class DecomposeScorer(Scorer):
@@ -45,7 +45,7 @@ class DecomposeScorer(Scorer):
             }
         
         decomposed_instances: List[ScorerInstance] = self.decomposer(instance)
-        scores = [self.base_scorer(dt, return_raw=True) for dt in decomposed_instances]
+        scores = self.base_scorer(decomposed_instances, return_raw=True)
 
         parsed_scores = [s['parsed'] for s in scores]
 

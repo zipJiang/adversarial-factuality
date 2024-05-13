@@ -46,4 +46,4 @@ class Scorer(ABC, Registrable):
 
     def _batch_score(self, instances: List[ScorerInstance]) -> List[Dict[Text, Union[Text, float]]]:
         """ """
-        return [self._score(instance) for instance in instances]
+        raise NotImplementedError("Override the batch scoring to get proper scoring.")
