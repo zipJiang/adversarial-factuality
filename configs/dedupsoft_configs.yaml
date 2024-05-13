@@ -11,11 +11,13 @@ task:
         base_url: "http://localhost:9871/v1"
         api_key: "token-abc123"
         example_path: "factscore_decomp_examples.txt"
+        sentencize: False
       sentence_level_checkworthy_scorer:
         type: "llm-checkworthy-general"
         model_name: "mistralai/Mistral-7B-Instruct-v0.2"
         base_url: "http://localhost:9871/v1"
         api_key: "token-abc123"
+        in_batch_num: 4
       claim_level_checkworthy_scorer:
         type: "unli-confidence-boost"
         bleached_templates:
@@ -26,14 +28,14 @@ task:
           type: "soft-entailer"
           model_name: "Zhengping/roberta-large-unli"
           max_length: 256
-          internal_batch_size: 16
+          internal_batch_size: 32
       entailer:
         type: "default"
         # model_name: "ynie/roberta-large-snli_mnli_fever_anli_R1_R2_R3-nli"
-        # model_name: "MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli"
-        model_name: "MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli"
+        model_name: "MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli"
+        # model_name: "MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli"
         max_length: 256
-        internal_batch_size: 16
+        internal_batch_size: 512
     base_scorer:
       type: "llm-support"
       db_path: "db/enwiki-20230401.db"

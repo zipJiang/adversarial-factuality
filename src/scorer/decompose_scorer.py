@@ -5,6 +5,7 @@ individual facts and scoring each fact individually.
 """
 
 from registrable import Lazy
+from dataclasses import dataclass, asdict
 from langchain_interface.interfaces import ChatInterface
 from ..abstention_detector.abstention_detector import AbstentionDetector
 from ..aggregator.aggregator import Aggregator
@@ -55,3 +56,51 @@ class DecomposeScorer(Scorer):
             "parsed": agg_score,
             "raw": " ## ".join([str(s['raw']) for s in scores])
         }
+    
+    @overrides
+    def _batch_score(self, instances: List[ScorerInstance]) -> List[Dict[Text, Text | float]]:
+        """We cascade over all the components instead of running components one by one
+        on instance.
+        """
+
+        results = {}
+        
+        instance_needs_process = []
+
+        for idx, instance in enumerate(instances):
+            if self.abstention_detector(instance.text):
+                results[idx] = {
+                    "parsed": 0.0,
+                    "raw": f"[[Abstained Response Detected]]: {instance.text}"
+                }
+                continue
+            else:
+                instance_needs_process.append(idx)
+                
+        # now we have a list of instances that need processing
+        input_instances = [instances[idx] for idx in instance_needs_process]
+        decomposed_instance_chunks: List[List[ScorerInstance]] = self.decomposer(input_instances)
+        
+        # extend them to tuples with index
+        decomposed_instance_tuples = [(idx, dt) for idx, dts in zip(instance_needs_process, decomposed_instance_chunks) for dt in dts]
+        raw_scores = self.base_scorer([dt[1] for dt in decomposed_instance_tuples], return_raw=True)
+        # parsed_scores = [s['parsed'] for s in scores]
+        
+        # print(decomposed_instance_tuples)
+        
+        # grouped parsed scores by index
+        grouped_parsed_scores = {}
+        for (idx, di), score_dict in zip(decomposed_instance_tuples, raw_scores):
+            if idx not in grouped_parsed_scores:
+                grouped_parsed_scores[idx] = []
+            grouped_parsed_scores[idx].append({**score_dict, **asdict(di)})
+            
+        for idx, score_dicts in grouped_parsed_scores.items():
+            agg_score = self.aggregator([s['parsed'] for s in score_dicts])
+            assert idx not in results, f"Index already exists in results {idx}."
+            results[idx] = {
+                "parsed": agg_score,
+                "raw": " ## ".join([str(s['raw']) for s in score_dicts])
+            }
+            
+        return [results[index] for index in range(len(instances))]

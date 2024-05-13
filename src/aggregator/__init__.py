@@ -1,2 +1,2 @@
 from .aggregator import Aggregator
-from .factscore_aggregator import FactScoreAggregator
+from .factscore_aggregator import FActScoreAggregator

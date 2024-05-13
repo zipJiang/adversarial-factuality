@@ -3,7 +3,7 @@
 
 from dataclasses import dataclass, field
 import string
-from typing import Text, Dict, List, Union, Optional
+from typing import Text, Dict, List, Union, Optional, AsyncGenerator, Tuple
 import os
 from overrides import overrides
 from langchain_interface.instances import LLMQueryInstance
@@ -30,7 +30,8 @@ class LLMSupportScorer(Scorer):
         db_path: Text,
         cache_dir: Text,
         base_url: Optional[Text] = None,
-        api_key: Optional[Text] = None
+        api_key: Optional[Text] = None,
+        retriever_batch_size: int = 256
     ):
         """
         """
@@ -39,6 +40,7 @@ class LLMSupportScorer(Scorer):
         self._model_name = model_name
         self._base_url = base_url
         self._api_key = api_key
+        self._retriever_batch_size = retriever_batch_size
         
         def _parse_input(instance: FActScoreQueryInstance) -> Dict[Text, Text]:
             """Generate the input dictionary for the LLM.
@@ -73,7 +75,7 @@ class LLMSupportScorer(Scorer):
         
         self._agent = ChatInterface(
             model_name=self._model_name,
-            batch_size=4,
+            batch_size=16,
             max_tokens=10,
             system_message=None,
             instruction_prompt=[],
@@ -95,7 +97,7 @@ class LLMSupportScorer(Scorer):
             db_path=self._db_path,
             cache_path=os.path.join(self._cache_dir, "retriever-cache.json"),
             embed_cache_path=os.path.join(self._cache_dir, "retriever-embed-cache.pkl"),
-            batch_size=256,
+            batch_size=self._retriever_batch_size,
         )
         
     @overrides
@@ -119,24 +121,49 @@ class LLMSupportScorer(Scorer):
         return result
     
     @overrides
-    def _batch_score(self, instances: List[ScorerInstance]) -> List[Dict[Text, Union[Text, float]]]:
-        """
+    def _batch_score(self, instances: List[ScorerInstance]) -> List[Dict[Text, Text | float]]:
+        """Now we will first retrieve for all the instances.
         """
         
-        inputs = []
-        # first convert the input instance into the FActScoreQueryInstance
-        # by retrieve from the database
-        for instance in instances:
-            passages = self._retriever.get_passages(instance.topic, instance.text, 5)
-            
-            input_instance = FActScoreQueryInstance(
-                id=0,
+        topics = [instance.topic for instance in instances]
+        texts = [instance.text for instance in instances]
+
+        passage_chunks = self._retriever.get_passages_batched(topics=topics, questions=texts, k=5)
+
+        assert len(passage_chunks) == len(instances)
+
+        input_instances = [
+            FActScoreQueryInstance(
+                id=idx,
                 topic=instance.topic,
                 passages=passages,
                 input=instance.text
-            )
-            inputs.append(input_instance)
+            ) for idx, (instance, passages) in enumerate(zip(instances, passage_chunks))
+        ]
         
-        result = self._agent(inputs, silence=True)
+        results = self._agent(input_instances, silence=False)
         
-        return result
+        return results
+    
+    # @overrides
+    # def _batch_score(self, instances: List[ScorerInstance]) -> List[Dict[Text, Union[Text, float]]]:
+    #     """
+    #     """
+        
+    #     inputs = []
+    #     # first convert the input instance into the FActScoreQueryInstance
+    #     # by retrieve from the database
+    #     for instance in instances:
+    #         passages = self._retriever.get_passages(instance.topic, instance.text, 5)
+            
+    #         input_instance = FActScoreQueryInstance(
+    #             id=0,
+    #             topic=instance.topic,
+    #             passages=passages,
+    #             input=instance.text
+    #         )
+    #         inputs.append(input_instance)
+        
+    #     result = self._agent(inputs, silence=True)
+        
+    #     return result

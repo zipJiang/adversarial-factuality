@@ -5,7 +5,7 @@ atomic facts.
 
 import spacy
 from overrides import overrides
-from typing import List, Text, Optional
+from typing import List, Text, Optional, Tuple
 from langchain_interface.instances import LLMQueryInstance
 from langchain_interface.example_selectors import ConstantExampleSelector
 from langchain_interface.interfaces import ChatInterface
@@ -65,7 +65,7 @@ class FActScoreDecomposer(Decomposer):
 
         self._agent = ChatInterface(
             model_name=self._model_name,
-            batch_size=4,
+            batch_size=16,
             max_tokens=512,
             system_message=None,
             instruction_prompt=[],
@@ -76,7 +76,7 @@ class FActScoreDecomposer(Decomposer):
             base_url=self._base_url,
             api_key=self._api_key
         )
-
+        
     @overrides
     def _decompose(self, instance: ScorerInstance) -> List[ScorerInstance]:
         """ """
@@ -98,3 +98,28 @@ class FActScoreDecomposer(Decomposer):
             outputs = self._agent([LLMQueryInstance(id=sidx, input=sentence.text) for sidx, sentence in enumerate(self._nlp(instance_text).sents)], silence=True)
         
         return [ScorerInstance(text=atom, topic=topic) for otp in outputs for atom in otp['parsed']]
+    
+    @overrides
+    def _batch_decompose(self, instances: List[ScorerInstance]) -> List[List[ScorerInstance]]:
+        """
+        """
+
+        if not self._sentencize:
+            inputs = [LLMQueryInstance(id=idx, input=instance.text) for idx, instance in enumerate(instances)]
+        else:
+            inputs = []
+            
+            for idx, instance in enumerate(instances):
+                for sentence in self._nlp(instance.text).sents:
+                    inputs.append(LLMQueryInstance(id=idx, input=sentence.text))
+
+        outputs = self._agent(inputs, silence=False)
+        
+        # now since we are getting all outputs
+        results = []
+        for ipt, opt in zip(inputs, outputs):
+            if ipt.id + 1 > len(results):
+                results.append([])
+            results[ipt.id].extend([ScorerInstance(text=atom, topic=instances[ipt.id].topic) for atom in opt['parsed']])
+            
+        return results

@@ -3,42 +3,37 @@ of wikidata api for feature verification.
 """
 
 import requests
+from SPARQLWrapper import SPARQLWrapper, JSON
 
 
-def fetch_wikipedia_titles(page_names):
+def get_nationalities(entity_ids):
+
+    sparql = SPARQLWrapper("https://query.wikidata.org/sparql")
+
+    values_clause = " ".join(f"wd:{id}" for id in entity_ids)
+    query = f"""
+    SELECT ?entity ?entityLabel ?nationalityLabel ?continentLabel WHERE {{
+        VALUES ?entity {{ {values_clause} }}
+        ?entity wdt:P27 ?nationality.
+        ?nationality wdt:P30 ?continent.
+        SERVICE wikibase:label {{ bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en". }}
+    }}
     """
-    Fetches information for multiple Wikipedia pages in a single API call.
+    sparql.setQuery(query)
+    sparql.setReturnFormat(JSON)
+    results = sparql.query().convert()
 
-    Args:
-    page_names (list of str): A list of page titles to query.
+    print(results)
 
-    Returns:
-    dict: A dictionary with page titles and their information.
-    """
-    # Join page names into a single string separated by '|'
-    titles = '|'.join(page_names)
+    nationalities = []
+    for result in results["results"]["bindings"]:
+        entity = result["entity"]["value"]
+        entity_label = result["entityLabel"]["value"]
+        nationality = result["nationalityLabel"]["value"]
+        continent = result["continentLabel"]["value"]
+        nationalities.append({"entity": entity, "nationality": nationality, "continent": continent})
 
-    # Base URL for the Wikipedia API
-    base_url = 'https://en.wikipedia.org/w/api.php'
+    return nationalities
 
-    # Parameters for the API call
-    params = {
-        'action': 'query',
-        'titles': titles,
-        'format': 'json',
-        'prop': 'info',  # Requesting basic page info; you can adjust this as needed
-    }
-
-    # Making the API call
-    response = requests.get(base_url, params=params)
-
-    # Check if the request was successful
-    if response.status_code == 200:
-        return response.json()
-    else:
-        return {'error': 'Failed to fetch data, status code: {}'.format(response.status_code)}
-
-# Example usage
-page_names = ['Albert_einstein', 'Artificial_intelligence', 'Python_(programming_language)', 'Machine_learning']
-result = fetch_wikipedia_titles(page_names)
-print(result)
+# Example usage for multiple entities
+print(get_nationalities(['Q42', 'Q8023']))  # Replace with desired Wikidata entity IDs

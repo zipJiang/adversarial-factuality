@@ -4,7 +4,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from overrides import overrides
-from typing import Text, List, Union, Dict
+from typing import Text, List, Union, Dict, AsyncGenerator, Tuple
 from registrable import Registrable
 from ..utils.instances import ScorerInstance
 
@@ -46,4 +46,8 @@ class Scorer(ABC, Registrable):
 
     def _batch_score(self, instances: List[ScorerInstance]) -> List[Dict[Text, Union[Text, float]]]:
         """ """
-        raise NotImplementedError("Override the batch scoring to get proper scoring.")
+        return [self._score(instance) for instance in instances]
+    
+    async def _async_batch_score(self, instances: List[ScorerInstance]) -> AsyncGenerator[Tuple[int, Dict[Text, Union[Text, float]]], None]:
+        """ """
+        raise NotImplementedError("Override the async scoring to get proper async scoring.")
