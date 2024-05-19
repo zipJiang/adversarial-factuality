@@ -66,10 +66,10 @@ class LLMSupportScorer(Scorer):
                     # I feel this is random tie breaking
                     is_supported = generated_answer.index("true") > generated_answer.index("false")
                     is_supported = 1.0 if is_supported else 0.0
-            # else:
-            #     generated_answer = generated_answer.translate(str.maketrans("", "", string.punctuation)).split()
-            #     is_supported = all([keyword not in generated_answer for keyword in ["not", "cannot", "unknown", "information"]])
-            #     is_supported = 1.0 if is_supported else 0.0
+            else:
+                generated_answer = generated_answer.translate(str.maketrans("", "", string.punctuation)).split()
+                is_supported = all([keyword not in generated_answer for keyword in ["not", "cannot", "unknown", "information"]])
+                is_supported = 1.0 if is_supported else 0.0
                 
             return is_supported
         
