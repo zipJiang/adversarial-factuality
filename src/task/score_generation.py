@@ -44,8 +44,8 @@ class ScoreGenerationTask(Task):
             #     "score": score
             # })
             
-        results = self.scorer(inputs)
-        results = [{**item, "score": result} for result, item in zip(results, data)]
+        results = self.scorer(inputs, return_raw=True)
+        results = [{**item, "score": result['parsed'], 'meta': result} for result, item in zip(results, data)]
 
         with open(self.output_path, "w", encoding='utf-8') as file_:
             json.dump(results, file_, indent=4)

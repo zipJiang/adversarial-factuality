@@ -98,7 +98,8 @@ class DecomposeScorer(Scorer):
             assert idx not in results, f"Index already exists in results {idx}."
             results[idx] = {
                 "parsed": agg_score,
-                "raw": " ## ".join([str(s['raw']) for s in score_dicts])
+                "raw": " ## ".join([str(s['raw']) for s in score_dicts]),
+                "claims": [s['text'] for s in score_dicts]
             }
             
         return [results[index] for index in range(len(instances))]
