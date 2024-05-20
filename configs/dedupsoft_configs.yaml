@@ -29,11 +29,11 @@ task:
           model_name: "Zhengping/roberta-large-unli"
           max_length: 256
           internal_batch_size: 32
-        cap_entailer:
-          type: "default"
-          model_name: "MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli"
-          max_length: 256
-          internal_batch_size: 512
+        # cap_entailer:
+        #   type: "default"
+        #   model_name: "MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli"
+        #   max_length: 256
+        #   internal_batch_size: 512
       entailer:
         type: "default"
         # model_name: "ynie/roberta-large-snli_mnli_fever_anli_R1_R2_R3-nli"

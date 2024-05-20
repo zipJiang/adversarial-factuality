@@ -94,6 +94,9 @@ class DecomposeScorer(Scorer):
             grouped_parsed_scores[idx].append({**score_dict, **asdict(di)})
             
         for idx, score_dicts in grouped_parsed_scores.items():
+            if idx not in instance_needs_process:
+                assert idx in results, f"Index not processed hasn't been correctly inserted: {idx}."
+                continue
             agg_score = self.aggregator([s['parsed'] for s in score_dicts])
             assert idx not in results, f"Index already exists in results {idx}."
             results[idx] = {
