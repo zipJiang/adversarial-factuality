@@ -1,0 +1,20 @@
+task:
+  type: peft-sft
+  model_name: "mistralai/Mistral-7B-Instruct-v0.2"
+  peft_config:
+    r: 8
+    lora_alpha: 8
+    target_modules:
+      - "q_proj"
+      - "k_proj"
+    fan_in_fan_out: false
+    lora_dropout: 0.1
+    bias: "none"
+  output_dir: "ckpt/peft-mistral-${SPLIT}"
+  train_data_path: "data/generated-samples/sampled_train-${SPLIT}.jsonl"
+  eval_data_path: "data/generated-samples/sampled_dev-${SPLIT}.jsonl"
+  test_data_path: "data/generated-samples/sampled_test-${SPLIT}.jsonl"
+  num_train_epochs: 3
+  batch_size: 32
+  learning_rate: 0.0002
+  is_chat_model: true
