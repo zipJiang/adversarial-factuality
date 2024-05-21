@@ -29,7 +29,8 @@ class ScoreGenerationTask(Task):
         """
         
         with open(self.input_path, "r", encoding='utf-8') as file_:
-            data = json.load(file_)
+            # data = json.load(file_)
+            data = [json.loads(line) for line in file_]
             
         results = []
         

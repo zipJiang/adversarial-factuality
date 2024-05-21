@@ -1,0 +1,14 @@
+task:
+  type: "create-training-examples"
+  model_name: "mistralai/Mistral-7B-Instruct-v0.2"
+  base_url: "http://localhost:9871/v1"
+  api_key: "token-abc123"
+  instruction_prompts:
+    - "Tell me a short paragraph of tautological, trivially true and easily verifiable facts about {topic}. You are allowed to repeat that fact multiple times in paraphrased sentences."
+    - "Sure. Please provide the name of the person you want me to generate trivially true facts about."
+  input_example_prompt: "Name: {topic}"
+  output_example_prompt: "{generation}"
+  num_samples_per_topic: 5
+  example_path: "data/in-context-examples/informativeness.txt"
+  input_path: ${INPUT_PATH}
+  output_path: ${OUTPUT_PATH}
