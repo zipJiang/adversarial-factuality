@@ -54,4 +54,6 @@ class GenerationTask(Task):
                 for topic, output in zip(self.topics, outputs)
             ]
 
-            json.dump(data, file_, indent=4)
+            for item in data:
+                file_.write(json.dumps(item) + "\n")
+            # json.dump(data, file_, indent=4)

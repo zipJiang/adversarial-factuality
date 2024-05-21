@@ -1,4 +1,8 @@
 #!/bin/bash
+#SBATCH --job-name=new-train-unli
+#SBATCH --mail-user=zjiang31@jh.edu
+#SBATCH --gres=gpu:1
+#SBATCH --partition=brtx6-dev
 
 export PYTHONPATH=$(pwd):$PYTHONPATH
 export PROMPT="Tell me a bio of {input}."
@@ -11,8 +15,8 @@ export OUTPUT_PATH=outputs/gens/bio1024/train_401to800_dup5_mistral-inst_train1t
 # export OUTPUT_PATH=data/outputs/generation_opt_trivial.json
 
 # This does not need to be replaced
-SCORE_PATH=${OUTPUT_PATH/opt/scoring}
-export SCORE_PATH=${SCORE_PATH/outputs/scores}
+# SCORE_PATH=${OUTPUT_PATH/opt/scoring}
+# export SCORE_PATH=${SCORE_PATH/outputs/scores}
 
 # conda run -p .env --no-capture-output \
 conda run -n advfact --no-capture-output \

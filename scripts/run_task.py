@@ -4,7 +4,7 @@ import click
 from envyaml import EnvYAML
 from registrable import Registrable
 from langchain.globals import set_llm_cache
-from langchain.cache import SQLiteCache
+from langchain_community.cache import SQLiteCache
 from src.task import Task
 
 

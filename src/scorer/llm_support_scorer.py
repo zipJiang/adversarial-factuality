@@ -76,7 +76,7 @@ class LLMSupportScorer(Scorer):
         self._agent = ChatInterface(
             model_name=self._model_name,
             batch_size=16,
-            max_tokens=10,
+            max_tokens=32,
             system_message=None,
             instruction_prompt=[],
             input_example_prompt="".join([
