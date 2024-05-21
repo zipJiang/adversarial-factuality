@@ -1,6 +1,6 @@
 task:
   type: "generation"
-  topic_path: "data/list_of_last_20_examples.txt"
+  topic_path: "data/entity_filtering/sampled_test.txt"
   model_name: "mistralai/Mistral-7B-Instruct-v0.2"
   base_url: "http://localhost:9871/v1"
   api_key: "token-abc123"
