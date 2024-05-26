@@ -14,7 +14,6 @@ class Scorer(ABC, Registrable):
 
     def __init__(self):
         super().__init__()
-        pass
 
     @abstractmethod
     def _score(self, instance: ScorerInstance) -> Dict[Text, Union[Text, float]]:
