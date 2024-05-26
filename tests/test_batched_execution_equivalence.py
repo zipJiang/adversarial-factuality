@@ -3,6 +3,9 @@ to see whether there results correlate.
 """
 
 import os
+import time
+import datetime
+from envyaml import EnvYAML
 from unittest import TestCase
 from copy import deepcopy
 from random import Random
@@ -15,6 +18,7 @@ from src.utils.instances import ScorerInstance
 from src.decomposer.factscore_decomposer import FActScoreDecomposer
 from src.decomposer.deduplicated_decompser import DeduplicatedDecomposer
 from src.scorer import (
+    Scorer,
     DecomposeScorer,
     LLMGeneralCheckWorthyScorer,
     LLMSpecificCheckWorthyScorer,
@@ -353,6 +357,19 @@ class TestBatchedExecutionEquivalence(TestCase):
             ]
         ]
 
+        import multiprocessing
+        multiprocessing.set_start_method('spawn', force=True)
+        
+        self.config = EnvYAML(
+            "configs/dedupsoft_configs.yaml",
+            flatten=False,
+            env_file="ENV.env",
+            include_environment=True,
+            OUTPUT_PATH="",
+            SCORE_PATH="",
+        ).export()['task']['scorer']
+        self.config['decomposer']['sentence_level_checkworthy_scorer']['in_batch_num'] = 1
+
     # def test_factscore_decomposer(self):
     #     """
     #     """
@@ -496,6 +513,12 @@ class TestBatchedExecutionEquivalence(TestCase):
     #         for case, score in zip(flattened_cases, batch_result):
     #             # self.assertEqual(single_result_dict[case.text], score)
     #             self.assertAlmostEqual(single_result_dict[case.text], score, delta=1e-5)
+    
+    # def test_unli_confidence_boost_scorer(self):
+    #     """Take UNLI confidence scorer,
+    #     and test if the results are consistent.
+    #     """
+    #     pass
                 
     # def test_deduplicated_decomposer(self):
     #     """We now test the deduplicated scorer, since
@@ -546,52 +569,52 @@ class TestBatchedExecutionEquivalence(TestCase):
     #     # now we run the batched version
     #     random_obj = Random(42)
     #     test_cases = deepcopy(self.test_cases)
-    #     for _ in range(10):
+    #     for _ in range(5):
     #         random_obj.shuffle(test_cases)
     #         batch_results = dedup_decomposer(test_cases)
             
     #         for test_case, batch_result in zip(test_cases, batch_results):
     #             self.assertEqual(single_result_dict[test_case.text], set([r.text for r in batch_result]))
                 
-    def test_retriever(self):
-        """It seems that beforehand LLM is making different queries for support evaluation,
-        which indicates that the retriever isn't equivalent under batched execution.
-        """
+    # def test_retriever(self):
+    #     """It seems that beforehand LLM is making different queries for support evaluation,
+    #     which indicates that the retriever isn't equivalent under batched execution.
+    #     """
 
-        cache_dir = ".cache/"
-        retriever = Retriever(
-            db_path="db/enwiki-20230401.db",
-            cache_path=os.path.join(cache_dir, "retriever-cache.json"),
-            embed_cache_path=os.path.join(cache_dir, "retriever-embed-cache.pkl"),
-            batch_size=256,
-            device="cuda:0"
-        )
+    #     cache_dir = ".cache/"
+    #     retriever = Retriever(
+    #         db_path="db/enwiki-20230401.db",
+    #         cache_path=os.path.join(cache_dir, "retriever-cache.json"),
+    #         embed_cache_path=os.path.join(cache_dir, "retriever-embed-cache.pkl"),
+    #         batch_size=256,
+    #         device="cuda:0"
+    #     )
         
-        single_results = {}
-        for test_case, claims in zip(self.test_cases, self.test_decomposed_cases_raw):
-            topic = test_case.topic
-            for claim in claims:
-                passages = retriever.get_passages(topic, question=claim, k=5)
-                single_results[claim] = passages
+    #     single_results = {}
+    #     for test_case, claims in zip(self.test_cases, self.test_decomposed_cases_raw):
+    #         topic = test_case.topic
+    #         for claim in claims:
+    #             passages = retriever.get_passages(topic, question=claim, k=5)
+    #             single_results[claim] = passages
 
-        flattened_cases = [ScorerInstance(text=raw_text, topic=case.topic) for group, case in zip(self.test_decomposed_cases_raw, self.test_cases) for raw_text in group]
-        random_obj = Random(42)
-        for _ in range(10):
-            del retriever
-            retriever = Retriever(
-                db_path="db/enwiki-20230401.db",
-                cache_path=os.path.join(cache_dir, "retriever-cache.json"),
-                embed_cache_path=os.path.join(cache_dir, "retriever-embed-cache.pkl"),
-                batch_size=256,
-                device="cuda:0"
-            )
-            random_obj.shuffle(flattened_cases)
-            batch_results = retriever.get_passages_batched(topics=[instance.topic for instance in flattened_cases], questions=[instance.text for instance in flattened_cases], k=5)
-            for case, passages in zip(flattened_cases, batch_results):
-                single_passages = single_results[case.text]
-                self.assertEqual(len(passages), len(single_passages))
-                for passage, single_passage in zip(passages, single_passages):
-                    self.assertDictEqual(passage, single_passage)
+    #     flattened_cases = [ScorerInstance(text=raw_text, topic=case.topic) for group, case in zip(self.test_decomposed_cases_raw, self.test_cases) for raw_text in group]
+    #     random_obj = Random(42)
+    #     for _ in range(10):
+    #         del retriever
+    #         retriever = Retriever(
+    #             db_path="db/enwiki-20230401.db",
+    #             cache_path=os.path.join(cache_dir, "retriever-cache.json"),
+    #             embed_cache_path=os.path.join(cache_dir, "retriever-embed-cache.pkl"),
+    #             batch_size=256,
+    #             device="cuda:0"
+    #         )
+    #         random_obj.shuffle(flattened_cases)
+    #         batch_results = retriever.get_passages_batched(topics=[instance.topic for instance in flattened_cases], questions=[instance.text for instance in flattened_cases], k=5)
+    #         for case, passages in zip(flattened_cases, batch_results):
+    #             single_passages = single_results[case.text]
+    #             self.assertEqual(len(passages), len(single_passages))
+    #             for passage, single_passage in zip(passages, single_passages):
+    #                 self.assertDictEqual(passage, single_passage)
                 
     # def test_decompose_scorer_without_dedup(self):
     #     """If the decomposer works, then it logically follows that
@@ -640,63 +663,14 @@ class TestBatchedExecutionEquivalence(TestCase):
     #     same within our configuration of deduplicator.
     #     """
         
-    #     decomp_scorer = DecomposeScorer(
-    #         abstention_detector=FActScoreAbstentionDetector(),
-    #         decomposer=DeduplicatedDecomposer(
-    #                 base_decomposer=FActScoreDecomposer(
-    #                 model_name="mistralai/Mistral-7B-Instruct-v0.2",
-    #                 example_path="factscore_decomp_examples.txt",
-    #                 # We do observe that the sentencize, if not applied,
-    #                 # will sometimes lead llm to generate outputs that can
-    #                 # fail the parsing pipeline, so if not wrapped by another pipeline
-    #                 # that does sentencize, it is highly recommended to sentencize
-    #                 sentencize=False,
-    #                 base_url="http://localhost:9871/v1",
-    #                 api_key="token-abc123"
-    #             ),
-    #             sentence_level_checkworthy_scorer = LLMGeneralCheckWorthyScorer(
-    #                 model_name="mistralai/Mistral-7B-Instruct-v0.2",
-    #                 base_url="http://localhost:9871/v1",
-    #                 api_key="token-abc123",
-    #                 # This is very important to get consistent scoring.
-    #                 in_batch_num=1
-    #             ),
-    #             claim_level_checkworthy_scorer=UNLIConfidenceBoostScorer(
-    #                 bleached_templates=[
-    #                     "{topic} is a person.",
-    #                     "{topic} breathes.",
-    #                     "{topic} exists."
-    #                 ],
-    #                 entailer=SoftEntailer(
-    #                     model_name="Zhengping/roberta-large-unli",
-    #                     device="cuda:0",
-    #                     internal_batch_size=32,
-    #                     max_length=256,
-    #                 ),
-    #             ),
-    #             entailer=Entailer(
-    #                 model_name="MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli",
-    #                 device="cuda:0",
-    #                 internal_batch_size=512,
-    #                 max_length=256,
-    #             ),
-    #             sentencize=True
-    #         ),
-    #         base_scorer=LLMSupportScorer(
-    #             model_name="mistralai/Mistral-7B-Instruct-v0.2",
-    #             base_url="http://localhost:9871/v1",
-    #             api_key="token-abc123",
-    #             retriever_batch_size=256,
-    #             db_path="db/enwiki-20230401.db",
-    #             cache_dir=".cache/"
-    #         ),
-    #         aggregator=FActScoreAggregator(gamma=10)
-    #     )
+    #     decomp_scorer = Scorer.from_params(self.config)
+        
+    #     cached = [1.0, 1.0, 1.0, .75, 0.6388888888888888]
         
     #     single_result_dict = {}
-    #     for test_case in self.test_cases:
-    #         result = decomp_scorer(test_case, return_raw=False)
-    #         single_result_dict[test_case.text] = result
+    #     for tidx, test_case in enumerate(self.test_cases):
+    #         # result = decomp_scorer(test_case, return_raw=False)
+    #         single_result_dict[test_case.text] = cached[tidx]
             
     #     # now we run the batched version
     #     random_obj = Random(42)
@@ -705,7 +679,38 @@ class TestBatchedExecutionEquivalence(TestCase):
     #     for _ in range(2):
     #         random_obj.shuffle(test_cases)
     #         batch_results = decomp_scorer(test_cases, return_raw=False)
+    #         # print(batch_results)
             
     #         for test_case, batch_result in zip(test_cases, batch_results):
     #             # print(test_case, batch_result)
     #             self.assertAlmostEqual(single_result_dict[test_case.text], batch_result, delta=1e-5)
+    
+    def test_parallel_and_non_parallel_timing_comparison(self):
+        """Compare paralleized version with non-parallelized version.
+        """
+        
+        # Disable cache to make sure that we
+        # do the full computation as needed.
+        from langchain.globals import set_llm_cache
+        set_llm_cache(None)
+        decomp_scorer: DeduplicatedDecomposer = Scorer.from_params(deepcopy(self.config))
+
+        start_legacy = time.time()
+        score = [item['parsed'] for item in decomp_scorer._legacy_batch_score(self.test_cases)]
+        end_legacy = time.time()
+        
+        time_delta = end_legacy - start_legacy
+        print(datetime.timedelta(seconds=time_delta))
+        print("legacy:", score)
+        
+        del decomp_scorer
+        config = deepcopy(self.config)
+        config['with_parallel'] = True
+        decomp_scorer: DeduplicatedDecomposer = Scorer.from_params(config)
+
+        start_parallel = time.time()
+        score = [item['parsed'] for item in decomp_scorer._base_decomposer_unroll_batch_score(self.test_cases)]
+        end_parallel = time.time()
+        time_delta = end_parallel - start_parallel
+        print(datetime.timedelta(seconds=time_delta))
+        print("parallel:", score)

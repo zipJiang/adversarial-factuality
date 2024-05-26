@@ -4,6 +4,7 @@ explicitly gives to UNLI being able to hypothetically predict the claim. """
 from dataclasses import dataclass, field
 import string
 from typing import Text, Dict, List, Union, Optional
+import numpy as np
 import os
 from overrides import overrides
 from ..entailer.entailer import Entailer, EntailerInstance
@@ -25,7 +26,7 @@ class UNLIConfidenceBoostScorer(Scorer):
         bleached_templates: List[Text],
         entailer: Entailer,
         cap_entailer: Optional[Entailer] = None,
-        epsilon: float = 1e-7,
+        epsilon: float = 1e-3,
     ):
         """We don't explicitly require the entailer to
         be soft, but practically people should always use a
@@ -33,6 +34,7 @@ class UNLIConfidenceBoostScorer(Scorer):
         """
 
         super().__init__()
+        
         self._bleached_templates = bleached_templates
         self._entailer = entailer
         self._cap_entailer = cap_entailer
@@ -55,7 +57,8 @@ class UNLIConfidenceBoostScorer(Scorer):
         ]
 
         scores = self._entailer(inputs)
-        score = max(scores)
+        # Adding lowerbound to cap_score to avoid log(0)
+        score = max(*scores, self._epsilon)
 
         cap_entailer_outputs = {}
 
@@ -68,9 +71,8 @@ class UNLIConfidenceBoostScorer(Scorer):
 
             cap_entailer_outputs["cap_scores"] = cap_scores
 
-        # The reason for subtracting epsilon from the score is to not select
-        # already entailed claims (from bleached context).
-        parsed_score = 1 - self._epsilon - score
+        # Zhengping 05/24/2025: Use - log(score) to align with CPMI
+        parsed_score = (- np.log(score) - self._epsilon).item()
 
         return {
             "premises": bleached_context,
@@ -120,12 +122,11 @@ class UNLIConfidenceBoostScorer(Scorer):
                 "premises": [bt.format(topic=instance.topic) for bt in self._bleached_templates],
                 "hypothesis": instance.text,
                 "parsed": (
-                    1 - self._epsilon - max(scores)
+                    # 1 - self._epsilon - max(scores)
+                    - np.log(max(*scores, self._epsilon)) - self._epsilon
                     if "cap_scores" not in cap_entailer_outputs
-                    else 1
-                    - self._epsilon
-                    - max(max(scores), max(cap_entailer_outputs["cap_scores"]))
-                ),
+                    else - np.log(max(*scores, *cap_entailer_outputs["cap_scores"], self._epsilon)) - self._epsilon
+                ).item(),
                 "scores": scores,
                 **cap_entailer_outputs,
             }
