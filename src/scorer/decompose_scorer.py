@@ -8,6 +8,7 @@ from registrable import Lazy
 from dataclasses import dataclass, asdict
 from langchain_interface.interfaces import ChatInterface
 import multiprocessing
+import logging
 from multiprocessing import Process, Pipe
 from ..abstention_detector.abstention_detector import AbstentionDetector
 from ..aggregator.aggregator import Aggregator
@@ -16,6 +17,9 @@ from ..utils.instances import ScorerInstance, DedupScoreInstance
 from typing import Text, Tuple, List, Dict, Union, Any
 from overrides import overrides
 from .scorer import Scorer
+
+
+logger = logging.getLogger(__name__)
 
 
 def _score_claims(
@@ -56,13 +60,15 @@ class DecomposeScorer(Scorer):
         abstention_detector: AbstentionDetector,
         decomposer: Decomposer,
         base_scorer: Scorer,
-        aggregator: Aggregator
+        aggregator: Aggregator,
+        with_parallel: bool = False
     ):
         super().__init__()
         self.abstention_detector = abstention_detector
         self.decomposer = decomposer
         self.base_scorer = base_scorer
         self.aggregator = aggregator
+        self._with_parallel = with_parallel
         
     @overrides
     def _score(self, instance: ScorerInstance) -> Dict[Text, Union[Text, float]]:
@@ -94,7 +100,10 @@ class DecomposeScorer(Scorer):
         """
         
         # if not isinstance(self.decomposer, DeduplicatedDecomposer):
-        if self.decomposer.__NAME__ != "deduplicated":
+        if not self._with_parallel:
+            return self._legacy_batch_score(instances)
+        elif self.decomposer.__NAME__ != "deduplicated":
+            logger.warning("Decomposer is not a DeduplicatedDecomposer, falling back to legacy batch score.")
             return self._legacy_batch_score(instances)
 
         # we unpack the decomposer call, first preprocess to prepare for multi-processing

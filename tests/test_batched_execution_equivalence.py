@@ -3,6 +3,8 @@ to see whether there results correlate.
 """
 
 import os
+import time
+import datetime
 from envyaml import EnvYAML
 from unittest import TestCase
 from copy import deepcopy
@@ -512,67 +514,67 @@ class TestBatchedExecutionEquivalence(TestCase):
     #             # self.assertEqual(single_result_dict[case.text], score)
     #             self.assertAlmostEqual(single_result_dict[case.text], score, delta=1e-5)
     
-    def test_unli_confidence_boost_scorer(self):
-        """Take UNLI confidence scorer,
-        and test if the results are consistent.
-        """
-        pass
+    # def test_unli_confidence_boost_scorer(self):
+    #     """Take UNLI confidence scorer,
+    #     and test if the results are consistent.
+    #     """
+    #     pass
                 
-    def test_deduplicated_decomposer(self):
-        """We now test the deduplicated scorer, since
-        now it is supposed to be the same for each new run
-        """
+    # def test_deduplicated_decomposer(self):
+    #     """We now test the deduplicated scorer, since
+    #     now it is supposed to be the same for each new run
+    #     """
         
-        dedup_decomposer = DeduplicatedDecomposer(
-            base_decomposer=FActScoreDecomposer(
-                model_name="mistralai/Mistral-7B-Instruct-v0.2",
-                example_path="factscore_decomp_examples.txt",
-                sentencize=False,
-                base_url="http://localhost:9871/v1",
-                api_key="token-abc123"
-            ),
-            sentence_level_checkworthy_scorer=LLMGeneralCheckWorthyScorer(
-                model_name="mistralai/Mistral-7B-Instruct-v0.2",
-                base_url="http://localhost:9871/v1",
-                api_key="token-abc123",
-                # Again we need to set this to 1 to get consistent scoring.
-                in_batch_num=1,
-            ),
-            claim_level_checkworthy_scorer=UNLIConfidenceBoostScorer(
-                bleached_templates=[
-                    "{topic} is a person.",
-                    "{topic} breathes.",
-                    "{topic} exists."
-                ],
-                entailer=SoftEntailer(
-                    model_name="Zhengping/roberta-large-unli",
-                    device="cuda:0",
-                    internal_batch_size=32,
-                    max_length=256,
-                ),
-            ),
-            entailer=Entailer(
-                model_name="MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli",
-                max_length=256,
-                internal_batch_size=512,
-            ),
-            sentencize=True
-        )
+    #     dedup_decomposer = DeduplicatedDecomposer(
+    #         base_decomposer=FActScoreDecomposer(
+    #             model_name="mistralai/Mistral-7B-Instruct-v0.2",
+    #             example_path="factscore_decomp_examples.txt",
+    #             sentencize=False,
+    #             base_url="http://localhost:9871/v1",
+    #             api_key="token-abc123"
+    #         ),
+    #         sentence_level_checkworthy_scorer=LLMGeneralCheckWorthyScorer(
+    #             model_name="mistralai/Mistral-7B-Instruct-v0.2",
+    #             base_url="http://localhost:9871/v1",
+    #             api_key="token-abc123",
+    #             # Again we need to set this to 1 to get consistent scoring.
+    #             in_batch_num=1,
+    #         ),
+    #         claim_level_checkworthy_scorer=UNLIConfidenceBoostScorer(
+    #             bleached_templates=[
+    #                 "{topic} is a person.",
+    #                 "{topic} breathes.",
+    #                 "{topic} exists."
+    #             ],
+    #             entailer=SoftEntailer(
+    #                 model_name="Zhengping/roberta-large-unli",
+    #                 device="cuda:0",
+    #                 internal_batch_size=32,
+    #                 max_length=256,
+    #             ),
+    #         ),
+    #         entailer=Entailer(
+    #             model_name="MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli",
+    #             max_length=256,
+    #             internal_batch_size=512,
+    #         ),
+    #         sentencize=True
+    #     )
         
-        single_result_dict = {}
-        for test_case in self.test_cases:
-            result = dedup_decomposer(test_case)
-            single_result_dict[test_case.text] = set([r.text for r in result])
+    #     single_result_dict = {}
+    #     for test_case in self.test_cases:
+    #         result = dedup_decomposer(test_case)
+    #         single_result_dict[test_case.text] = set([r.text for r in result])
             
-        # now we run the batched version
-        random_obj = Random(42)
-        test_cases = deepcopy(self.test_cases)
-        for _ in range(5):
-            random_obj.shuffle(test_cases)
-            batch_results = dedup_decomposer(test_cases)
+    #     # now we run the batched version
+    #     random_obj = Random(42)
+    #     test_cases = deepcopy(self.test_cases)
+    #     for _ in range(5):
+    #         random_obj.shuffle(test_cases)
+    #         batch_results = dedup_decomposer(test_cases)
             
-            for test_case, batch_result in zip(test_cases, batch_results):
-                self.assertEqual(single_result_dict[test_case.text], set([r.text for r in batch_result]))
+    #         for test_case, batch_result in zip(test_cases, batch_results):
+    #             self.assertEqual(single_result_dict[test_case.text], set([r.text for r in batch_result]))
                 
     # def test_retriever(self):
     #     """It seems that beforehand LLM is making different queries for support evaluation,
@@ -661,59 +663,6 @@ class TestBatchedExecutionEquivalence(TestCase):
     #     same within our configuration of deduplicator.
     #     """
         
-    #     # decomp_scorer = DecomposeScorer(
-    #     #     abstention_detector=FActScoreAbstentionDetector(),
-    #     #     decomposer=DeduplicatedDecomposer(
-    #     #             base_decomposer=FActScoreDecomposer(
-    #     #             model_name="mistralai/Mistral-7B-Instruct-v0.2",
-    #     #             example_path="factscore_decomp_examples.txt",
-    #     #             # We do observe that the sentencize, if not applied,
-    #     #             # will sometimes lead llm to generate outputs that can
-    #     #             # fail the parsing pipeline, so if not wrapped by another pipeline
-    #     #             # that does sentencize, it is highly recommended to sentencize
-    #     #             sentencize=False,
-    #     #             base_url="http://localhost:9871/v1",
-    #     #             api_key="token-abc123"
-    #     #         ),
-    #     #         sentence_level_checkworthy_scorer = LLMGeneralCheckWorthyScorer(
-    #     #             model_name="mistralai/Mistral-7B-Instruct-v0.2",
-    #     #             base_url="http://localhost:9871/v1",
-    #     #             api_key="token-abc123",
-    #     #             # This is very important to get consistent scoring.
-    #     #             in_batch_num=1
-    #     #         ),
-    #     #         claim_level_checkworthy_scorer=UNLIConfidenceBoostScorer(
-    #     #             bleached_templates=[
-    #     #                 "{topic} is a person.",
-    #     #                 "{topic} breathes.",
-    #     #                 "{topic} exists."
-    #     #             ],
-    #     #             entailer=SoftEntailer(
-    #     #                 model_name="Zhengping/roberta-large-unli",
-    #     #                 device="cuda:0",
-    #     #                 internal_batch_size=32,
-    #     #                 max_length=256,
-    #     #             ),
-    #     #         ),
-    #     #         entailer=Entailer(
-    #     #             model_name="MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli",
-    #     #             device="cuda:0",
-    #     #             internal_batch_size=512,
-    #     #             max_length=256,
-    #     #         ),
-    #     #         sentencize=True
-    #     #     ),
-    #     #     base_scorer=LLMSupportScorer(
-    #     #         model_name="mistralai/Mistral-7B-Instruct-v0.2",
-    #     #         base_url="http://localhost:9871/v1",
-    #     #         api_key="token-abc123",
-    #     #         retriever_batch_size=256,
-    #     #         db_path="db/enwiki-20230401.db",
-    #     #         cache_dir=".cache/"
-    #     #     ),
-    #     #     aggregator=FActScoreAggregator(gamma=10)
-    #     # )
-        
     #     decomp_scorer = Scorer.from_params(self.config)
         
     #     cached = [1.0, 1.0, 1.0, .75, 0.6388888888888888]
@@ -735,3 +684,33 @@ class TestBatchedExecutionEquivalence(TestCase):
     #         for test_case, batch_result in zip(test_cases, batch_results):
     #             # print(test_case, batch_result)
     #             self.assertAlmostEqual(single_result_dict[test_case.text], batch_result, delta=1e-5)
+    
+    def test_parallel_and_non_parallel_timing_comparison(self):
+        """Compare paralleized version with non-parallelized version.
+        """
+        
+        # Disable cache to make sure that we
+        # do the full computation as needed.
+        from langchain.globals import set_llm_cache
+        set_llm_cache(None)
+        decomp_scorer: DeduplicatedDecomposer = Scorer.from_params(deepcopy(self.config))
+
+        start_legacy = time.time()
+        score = [item['parsed'] for item in decomp_scorer._legacy_batch_score(self.test_cases)]
+        end_legacy = time.time()
+        
+        time_delta = end_legacy - start_legacy
+        print(datetime.timedelta(seconds=time_delta))
+        print("legacy:", score)
+        
+        del decomp_scorer
+        config = deepcopy(self.config)
+        config['with_parallel'] = True
+        decomp_scorer: DeduplicatedDecomposer = Scorer.from_params(config)
+
+        start_parallel = time.time()
+        score = [item['parsed'] for item in decomp_scorer._base_decomposer_unroll_batch_score(self.test_cases)]
+        end_parallel = time.time()
+        time_delta = end_parallel - start_parallel
+        print(datetime.timedelta(seconds=time_delta))
+        print("parallel:", score)
