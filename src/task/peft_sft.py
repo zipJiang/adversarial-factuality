@@ -4,17 +4,24 @@ with Cooperative Principle Violation.
 """
 
 from overrides import overrides
+from datetime import datetime
 import math
 import torch
+import os
 from datasets import Dataset
 from typing import List, Any, Dict, Text, Optional
 from peft import LoraConfig, TaskType, prepare_model_for_kbit_training, get_peft_model, get_peft_config
 import transformers
 from transformers import Trainer, TrainingArguments
+from transformers import SchedulerType
 from transformers import DataCollatorForLanguageModeling
 from transformers import EarlyStoppingCallback
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from .task import Task
+
+
+os.environ['WANDB_PROJECT'] = "peft-sft-adverserial-factuality"
+os.environ['WANDB_LOG_MODEL'] = "checkpoint"
 
 
 @Task.register('peft-sft')
@@ -69,6 +76,11 @@ class PeftSFTTask(Task):
         self._is_chat_model = is_chat_model
         self._load_in_8bit = load_in_8bit
 
+        self._run_stem = '-'.join([
+            os.path.basename(train_data_path).split('.')[0].split("-")[-1],
+            os.path.basename(model_name)
+        ])
+
     @overrides
     def run(self):
         """
@@ -121,10 +133,16 @@ class PeftSFTTask(Task):
             per_device_train_batch_size=self._batch_size,
             gradient_accumulation_steps=self._gradient_accumulation_steps,
             learning_rate=self._learning_rate,
+            lr_scheduler_type=SchedulerType.CONSTANT_WITH_WARMUP,
+            warmup_steps=100,
             num_train_epochs=self._num_train_epochs,
             load_best_model_at_end=True,
             metric_for_best_model="eval_loss",
             greater_is_better=False,
+            report_to="wandb",
+            run_name=f"{self._run_stem}-{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}",
+            logging_steps=20,
+            save_total_limit=1
         )
         
         # need to create data with the tokenizer
