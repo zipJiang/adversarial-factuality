@@ -14,7 +14,7 @@ task:
   train_data_path: "data/generated-samples/sampled_train-${SPLIT}.jsonl"
   eval_data_path: "data/generated-samples/sampled_dev-${SPLIT}.jsonl"
   test_data_path: "data/generated-samples/sampled_test-${SPLIT}.jsonl"
-  num_train_epochs: 3
+  num_train_epochs: 4
   batch_size: 32
   learning_rate: 0.0002
   is_chat_model: true

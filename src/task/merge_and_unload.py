@@ -1,6 +1,7 @@
 """Take an adaptor and merge it into the main model weights.
 """
 
+import os
 from .task import Task
 from typing import Text
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -36,7 +37,10 @@ class MergeAndUnload(Task):
         """
         base_model = AutoModelForCausalLM.from_pretrained(self._model_name)
         # tokenizer = AutoTokenizer.from_pretrained(model_name)
-        model = PeftModel.from_pretrained(base_model, self._adaptor_path)
+        # list the only checkpoint subfolder in the _adaptor_path
+        # and load
+        ckpt_path = os.listdir(self._adaptor_path)[0]
+        model = PeftModel.from_pretrained(base_model, os.path.join(self._adaptor_path, ckpt_path))
         merge_model = model.merge_and_unload()
         
         # save model to disk

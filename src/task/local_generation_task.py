@@ -42,7 +42,7 @@ class LocalGenerationTask(Task):
         self._topic_path = topic_path
         self._output_path = output_path
         self._prompt = prompt
-        self._is_chat = is_chat
+        self._is_chat = is_chat and not self._model_name.endswith("gpt2")
         
     @overrides
     def run(self):
