@@ -1,0 +1,7 @@
+task:
+  type: "score-analysis"
+  result_paths:
+    "FactScore": "data/scores/tuned_generation/${SPLIT}-${MODEL_TYPE}-factscore.json"
+    "FactMore": "data/scores/tuned_generation/${SPLIT}-${MODEL_TYPE}-dedup.json"
+  group_mapping_path: "data/entity_filtering/sampled_test_freq_group_map.json"
+  output_dir: "data/analysis/${SPLIT}-${MODEL_TYPE}"

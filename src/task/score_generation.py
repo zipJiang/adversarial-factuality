@@ -12,6 +12,10 @@ from src.utils.instances import ScorerInstance
 
 @Task.register("score-generation")
 class ScoreGenerationTask(Task):
+    """
+    """
+    ___NAME__ = "score-generation"
+    
     def __init__(
         self,
         scorer: Scorer,
