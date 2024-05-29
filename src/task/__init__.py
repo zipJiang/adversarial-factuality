@@ -10,3 +10,4 @@ from .create_training_examples import CreateTraniningExamples
 from .peft_sft import PeftSFTTask
 from .merge_and_unload import MergeAndUnload
 from .local_generation_task import LocalGenerationTask
+from .score_analysis import ScoreAnalysisTask
