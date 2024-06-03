@@ -11,7 +11,7 @@ from langchain_interface.instances import LLMQueryInstance
 from langchain_interface.example_selectors import ConstantExampleSelector
 from langchain_interface.interfaces import ChatInterface
 from ..scorer.scorer import Scorer
-from ..utils.instances import ScorerInstance, DedupScoreInstance
+from ..utils.instances import ScorerInstance, DedupScorerInstance
 from .decomposer import Decomposer
 
 
@@ -52,7 +52,7 @@ class DeduplicatedDecomposer(Decomposer):
 
         if self._sentencize:
             sent_seqs = [
-                ScorerInstance(text=sent, topic=instance.topic)
+                ScorerInstance(text=sent, topic=instance.topic, source_text=instance.source_text)
                 for sent in self._to_sents(instance.text)
             ]
         else:
@@ -70,7 +70,6 @@ class DeduplicatedDecomposer(Decomposer):
             if sent_checkworthy < 0.5:
                 # This sentence is not checkworthy in general
                 continue
-            # decomposing_instance = ScorerInstance(sent, topic=instance.topic)
             decomposed: List[ScorerInstance] = self._base_decomposer(sent)
 
             # filter out duplicated claims (on sentence-level)
@@ -97,9 +96,10 @@ class DeduplicatedDecomposer(Decomposer):
         # print("s:", claim_checkworthiness)
 
         all_instances = [
-            DedupScoreInstance(
+            DedupScorerInstance(
                 text=decomposed_instance.text,
                 topic=decomposed_instance.topic,
+                source_text=decomposed_instance.source_text,
                 # in_sent_claim_idx=claim_idx,
                 # from_sent_idx=idx,
                 # sent=sent,
@@ -149,9 +149,10 @@ class DeduplicatedDecomposer(Decomposer):
         ccw_inputs = [
             (
                 ci[0],
-                DedupScoreInstance(
+                DedupScorerInstance(
                     text=ci[3].text,
                     topic=ci[3].topic,
+                    source_text=ci[3].source_text,
                     in_sent_claim_idx=ci[2],
                     from_sent_idx=ci[1],
                     sent=sent_tuples[ci[1]][2],
@@ -198,7 +199,7 @@ class DeduplicatedDecomposer(Decomposer):
             ]
 
         sent_instances = [
-            ScorerInstance(text=sent, topic=instances[idx].topic)
+            ScorerInstance(text=sent, topic=instances[idx].topic, source_text=instances[idx].source_text)
             for idx, sent in sent_tuples
         ]
 
@@ -214,17 +215,17 @@ class DeduplicatedDecomposer(Decomposer):
             if ckwt > 0.5
         ]
         return [
-            ScorerInstance(text=sent, topic=instances[idx].topic)
+            ScorerInstance(text=sent, topic=instances[idx].topic, source_text=instances[idx].source_text)
             for idx, _, sent in sent_tuples
         ], sent_tuples
 
     def _batch_deduplicate(
-        self, instance_tuples: List[Tuple[int, DedupScoreInstance]]
+        self, instance_tuples: List[Tuple[int, DedupScorerInstance]]
     ) -> List[int]:
         """
-        instance_tuples: --- List[Tuple[int, DedupScoreInstance]],
+        instance_tuples: --- List[Tuple[int, DedupScorerInstance]],
             where the first element of the tuple is the index of the instance the dedup comes from
-            and the second element is the DedupScoreInstance.
+            and the second element is the DedupScorerInstance.
 
         return: --- List[int],
             the indices of the instances that are not duplicated (need to be selected).
@@ -366,7 +367,7 @@ class DeduplicatedDecomposer(Decomposer):
 
         return [sentence.text for sentence in self._nlp(text).sents]
 
-    def _deduplicate(self, instances: List[DedupScoreInstance]) -> List[int]:
+    def _deduplicate(self, instances: List[DedupScorerInstance]) -> List[int]:
         """Return the indices of the instances that are not duplicated."""
 
         sent_filter_instances = [

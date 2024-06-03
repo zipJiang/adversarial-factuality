@@ -59,8 +59,8 @@ class LLMGeneralCheckWorthyScorer(Scorer):
 
         self._agent = ChatInterface(
             model_name=self._model_name,
-            batch_size=16,
-            max_tokens=32,
+            batch_size=32,
+            max_tokens=64,
             system_message="You are a helpful factchecker assistant." if self._base_url is None else None,
             instruction_prompt=[],
             input_example_prompt=CHECKWORTHY_PROMPT,
@@ -69,6 +69,7 @@ class LLMGeneralCheckWorthyScorer(Scorer):
             output_parser=_parse_output,
             base_url=self._base_url,
             api_key=self._api_key,
+            max_concurrency=32,
         )
 
     @overrides

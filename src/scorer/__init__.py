@@ -6,3 +6,5 @@ from .llm_checkworthy_scorer import (
     LLMGeneralCheckWorthyScorer
 )
 from .unli_confidence_boost_scorer import UNLIConfidenceBoostScorer
+from .relevancy_scorer import RelevancyScorer
+from .safe_support_scorer import SAFESupportScorer

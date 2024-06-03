@@ -1,3 +1,5 @@
 from .decomposer import Decomposer
 from .factscore_decomposer import FActScoreDecomposer
+from .russellian_decomposer import RussellianDecomposer
 from .deduplicated_decompser import DeduplicatedDecomposer
+from .refined_decomposer import RefinedDecomposer

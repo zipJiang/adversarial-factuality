@@ -65,7 +65,7 @@ class FActScoreDecomposer(Decomposer):
 
         self._agent = ChatInterface(
             model_name=self._model_name,
-            batch_size=16,
+            batch_size=32,
             max_tokens=512,
             system_message=None,
             instruction_prompt=[],
@@ -74,7 +74,8 @@ class FActScoreDecomposer(Decomposer):
             output_parser=_split_atomic_facts,
             example_selector=self._example_selector,
             base_url=self._base_url,
-            api_key=self._api_key
+            api_key=self._api_key,
+            max_concurrency=32,
         )
         
     @overrides
@@ -97,7 +98,7 @@ class FActScoreDecomposer(Decomposer):
         else:
             outputs = self._agent([LLMQueryInstance(id=sidx, input=sentence.text) for sidx, sentence in enumerate(self._nlp(instance_text).sents)], silence=True)
         
-        return [ScorerInstance(text=atom, topic=topic) for otp in outputs for atom in otp['parsed']]
+        return [ScorerInstance(text=atom, topic=topic, source_text=instance.source_text) for otp in outputs for atom in otp['parsed']]
     
     @overrides
     def _batch_decompose(self, instances: List[ScorerInstance]) -> List[List[ScorerInstance]]:
@@ -120,6 +121,6 @@ class FActScoreDecomposer(Decomposer):
         for ipt, opt in zip(inputs, outputs):
             if ipt.id + 1 > len(results):
                 results.append([])
-            results[ipt.id].extend([ScorerInstance(text=atom, topic=instances[ipt.id].topic) for atom in opt['parsed']])
+            results[ipt.id].extend([ScorerInstance(text=atom, topic=instances[ipt.id].topic, source_text=instances[ipt.id].source_text) for atom in opt['parsed']])
             
         return results

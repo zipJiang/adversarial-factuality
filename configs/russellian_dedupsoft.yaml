@@ -6,11 +6,11 @@ task:
     decomposer:
       type: "deduplicated"
       base_decomposer:
-        type: "factscore"
+        type: "russellian"
         model_name: "mistralai/Mistral-7B-Instruct-v0.2"
         base_url: "http://localhost:9871/v1"
         api_key: "token-abc123"
-        example_path: "factscore_decomp_examples.txt"
+        example_path: "russellian_decomp_examples.txt"
         sentencize: False
       sentence_level_checkworthy_scorer:
         type: "llm-checkworthy-general"

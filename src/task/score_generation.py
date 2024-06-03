@@ -38,7 +38,7 @@ class ScoreGenerationTask(Task):
             
         results = []
         
-        inputs = [ScorerInstance(text=item['output']['parsed'], topic=item['topic']) for item in tqdm(data)]
+        inputs = [ScorerInstance(text=item['output']['parsed'], topic=item['topic'], source_text=item['output']['parsed']) for item in tqdm(data)]
             # score = self.scorer(ScorerInstance(
             #     text=item['output']['parsed'],
             #     topic=item['topic'],
@@ -52,11 +52,5 @@ class ScoreGenerationTask(Task):
         results = self.scorer(inputs, return_raw=True)
         results = [{**item, "score": result['parsed'], 'meta': result} for result, item in zip(results, data)]
         
-        # calculate average and print
-        scores = [item['score'] for item in results]
-        avg_score = sum(scores) / len(scores) * 100
-        
-        print(f"Average score: {avg_score:.4f}%")
-
         with open(self.output_path, "w", encoding='utf-8') as file_:
             json.dump(results, file_, indent=4)

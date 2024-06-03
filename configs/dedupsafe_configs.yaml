@@ -6,12 +6,28 @@ task:
     decomposer:
       type: "deduplicated"
       base_decomposer:
-        type: "factscore"
-        model_name: "mistralai/Mistral-7B-Instruct-v0.2"
-        base_url: "http://localhost:9871/v1"
-        api_key: "token-abc123"
-        example_path: "factscore_decomp_examples.txt"
+        type: "refined-decomposer"
         sentencize: False
+        base_decomposer:
+          type: "factscore"
+          model_name: "mistralai/Mistral-7B-Instruct-v0.2"
+          base_url: "http://localhost:9871/v1"
+          api_key: "token-abc123"
+          example_path: "factscore_decomp_examples.txt"
+          sentencize: False
+        decontextualizer:
+          type: "default"
+          model_name: "mistralai/Mistral-7B-Instruct-v0.2"
+          example_path: "decontextualize_examples.txt"
+          base_url: "http://localhost:9871/v1"
+          api_key: "token-abc123"
+        relevancy_scorer:
+          type: "relevancy-scorer"
+          generation_prompt_template: "tell me a bio of {topic}."
+          model_name: "mistralai/Mistral-7B-Instruct-v0.2"
+          example_path: "relevancy_examples.txt"
+          base_url: "http://localhost:9871/v1"
+          api_key: "token-abc123"
       sentence_level_checkworthy_scorer:
         type: "llm-checkworthy-general"
         model_name: "mistralai/Mistral-7B-Instruct-v0.2"
@@ -48,18 +64,16 @@ task:
         max_length: 256
         internal_batch_size: 512
     base_scorer:
-      type: "llm-support"
-      # db_path: "db/enwiki-20230401.db"
-      # cache_dir: ".cache/"
-      retriever:
-        type: "wikidoc"
-        db_path: "db/enwiki-20230401.db"
-        cache_path: ".cache/retriever-cache.json"
-        embed_cache_path: ".cache/retriever-embed-cache.pkl"
-        retrieval_type: "gtr-t5-large"
-        batch_size: 256
-        device: "cuda:0"
+      type: "safe-support"
       model_name: "mistralai/Mistral-7B-Instruct-v0.2"
+      retriever:
+        type: "serper"
+        model_name: "mistralai/Mistral-7B-Instruct-v0.2"
+        serper_api_key: ${SERPER_API_KEY}
+        base_url: "http://localhost:9871/v1"
+        api_key: "token-abc123"
+        cache_path: ".cache/serper/serper_cache.db"
+        top_k: 3
       base_url: "http://localhost:9871/v1"
       api_key: "token-abc123"
     aggregator:
