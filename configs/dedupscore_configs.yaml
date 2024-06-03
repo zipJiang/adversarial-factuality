@@ -26,8 +26,16 @@ task:
         internal_batch_size: 8
     base_scorer:
       type: "llm-support"
-      db_path: "db/enwiki-20230401.db"
-      cache_dir: ".cache/"
+      # db_path: "db/enwiki-20230401.db"
+      # cache_dir: ".cache/"
+      retriever:
+        type: "wikidoc"
+        db_path: "db/enwiki-20230401.db"
+        cache_path: ".cache/retriever-cache.json"
+        embed_cache_path: ".cache/retriever-embed-cache.pkl"
+        retrieval_type: "gtr-t5-large"
+        batch_size: 256
+        device: "cuda:0"
       model_name: "mistralai/Mistral-7B-Instruct-v0.2"
       base_url: "http://localhost:9871/v1"
       api_key: "token-abc123"

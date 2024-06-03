@@ -17,11 +17,31 @@ export SCORE_PATH="${SCORE_DIR}${split}-${model_type}-factscore.json"
 
 "/brtx/606-nvme2/zpjiang/adversarial-factuality/runs/port_binding.sh"
 
+# conda run -p ${PARENT_DIR}.env --no-capture-output \
+#     python ${PARENT_DIR}scripts/run_task.py ${PARENT_DIR}configs/factscore_configs.yaml \
+#     --cache-path $CACHE_PATH
+
+# export SCORE_PATH="${SCORE_DIR}${split}-${model_type}-dedup.json"
+# conda run -p ${PARENT_DIR}.env --no-capture-output \
+#     python ${PARENT_DIR}scripts/run_task.py ${PARENT_DIR}configs/dedupsoft_configs.yaml \
+#     --cache-path $CACHE_PATH
+
+# export SCORE_PATH="${SCORE_DIR}${split}-${model_type}-russellian.json"
+# conda run -p ${PARENT_DIR}.env --no-capture-output \
+#     python ${PARENT_DIR}scripts/run_task.py ${PARENT_DIR}configs/russellian_configs.yaml \
+#     --cache-path $CACHE_PATH
+
+# export SCORE_PATH="${SCORE_DIR}${split}-${model_type}-russellianddp.json"
+# conda run -p ${PARENT_DIR}.env --no-capture-output \
+#     python ${PARENT_DIR}scripts/run_task.py ${PARENT_DIR}configs/russellian_dedupsoft.yaml \
+#     --cache-path $CACHE_PATH
+
+export SCORE_PATH="${SCORE_DIR}${split}-${model_type}-safe.json"
 conda run -p ${PARENT_DIR}.env --no-capture-output \
-    python ${PARENT_DIR}scripts/run_task.py ${PARENT_DIR}configs/factscore_configs.yaml \
+    python ${PARENT_DIR}scripts/run_task.py ${PARENT_DIR}configs/safe_configs.yaml \
     --cache-path $CACHE_PATH
 
-export SCORE_PATH="${SCORE_DIR}${split}-${model_type}-dedup.json"
+export SCORE_PATH="${SCORE_DIR}${split}-${model_type}-safeddp.json"
 conda run -p ${PARENT_DIR}.env --no-capture-output \
-    python ${PARENT_DIR}scripts/run_task.py ${PARENT_DIR}configs/dedupsoft_configs.yaml \
+    python ${PARENT_DIR}scripts/run_task.py ${PARENT_DIR}configs/dedupsafe_configs.yaml \
     --cache-path $CACHE_PATH

@@ -1,0 +1,45 @@
+task:
+  type: "score-generation"
+  scorer:
+    type: "decompose"
+    abstention_detector: "factscore"
+    decomposer:
+      type: "refined-decomposer"
+      base_decomposer:
+        type: "factscore"
+        model_name: "mistralai/Mistral-7B-Instruct-v0.2"
+        base_url: "http://localhost:9871/v1"
+        api_key: "token-abc123"
+        example_path: "factscore_decomp_examples.txt"
+        sentencize: False
+      decontextualizer:
+        type: "default"
+        model_name: "mistralai/Mistral-7B-Instruct-v0.2"
+        example_path: "decontextualize_examples.txt"
+        base_url: "http://localhost:9871/v1"
+        api_key: "token-abc123"
+      relevancy_scorer:
+        type: "relevancy-scorer"
+        generation_prompt_template: "tell me a bio of {topic}."
+        model_name: "mistralai/Mistral-7B-Instruct-v0.2"
+        example_path: "relevancy_examples.txt"
+        base_url: "http://localhost:9871/v1"
+        api_key: "token-abc123"
+    base_scorer:
+      type: "safe-support"
+      model_name: "mistralai/Mistral-7B-Instruct-v0.2"
+      retriever:
+        type: "serper"
+        model_name: "mistralai/Mistral-7B-Instruct-v0.2"
+        serper_api_key: ${SERPER_API_KEY}
+        base_url: "http://localhost:9871/v1"
+        api_key: "token-abc123"
+        cache_path: ".cache/serper/serper_cache.db"
+        top_k: 3
+      base_url: "http://localhost:9871/v1"
+      api_key: "token-abc123"
+    aggregator:
+      type: "factscore"
+      gamma: 10
+  input_path: ${OUTPUT_PATH}
+  output_path: ${SCORE_PATH}

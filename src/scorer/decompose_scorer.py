@@ -13,7 +13,7 @@ from multiprocessing import Process, Pipe
 from ..abstention_detector.abstention_detector import AbstentionDetector
 from ..aggregator.aggregator import Aggregator
 from ..decomposer.decomposer import Decomposer
-from ..utils.instances import ScorerInstance, DedupScoreInstance
+from ..utils.instances import ScorerInstance, DedupScorerInstance
 from typing import Text, Tuple, List, Dict, Union, Any
 from overrides import overrides
 from .scorer import Scorer
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 def _score_claims(
-    instance_tuples: List[Tuple[int, DedupScoreInstance]],
+    instance_tuples: List[Tuple[int, DedupScorerInstance]],
     base_scorer_params: Dict[Text, Any],
     score_sender: multiprocessing.connection.Connection
 ):
@@ -37,7 +37,7 @@ def _score_claims(
     score_sender.close()
 
 def _deduplicate_claims(
-    instance_tuples: List[Tuple[int, DedupScoreInstance]],
+    instance_tuples: List[Tuple[int, DedupScorerInstance]],
     decomposer_params: Dict[Text, Any],
     dedup_sender: multiprocessing.connection.Connection
 ):
@@ -148,7 +148,7 @@ class DecomposeScorer(Scorer):
         ccw_inputs = [
             (
                 ci[0],
-                DedupScoreInstance(
+                DedupScorerInstance(
                     text=ci[3].text,
                     topic=ci[3].topic,
                     in_sent_claim_idx=ci[2],
@@ -179,7 +179,7 @@ class DecomposeScorer(Scorer):
         
         # now do the aggregation as unrolled in the _batch_deduplicate
         # as well as in the _batch_score
-        deduplicated: List[Tuple[int, DedupScoreInstance]] = [ccw_inputs[idx] for idx in dedup_results]
+        deduplicated: List[Tuple[int, DedupScorerInstance]] = [ccw_inputs[idx] for idx in dedup_results]
         score_results: List[Dict[Text, Text | float]] = [score_results[idx] for idx in dedup_results]
 
         # grouped parsed scores by index
