@@ -45,7 +45,8 @@ class LLMSupportScorer(Scorer):
             """Generate the input dictionary for the LLM.
             """
             return {
-                "parsed_passages": '\n\n'.join([passage['text'] for passage in instance.passages]),
+                "parsed_passages": '\n\n'.join([f"Title: {passage['title']} Text: {passage['text']}" for passage in instance.passages]) + '\n\n',
+                "topic": instance.topic,
                 "input": instance.input
             }
             
