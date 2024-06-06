@@ -1,7 +1,0 @@
-task:
-  type: "local-generation"
-  model_dir: "ckpt/servables/${SPLIT}-${MODEL_TYPE}"
-  topic_path: "data/entity_filtering/sampled_test.txt"
-  output_path: "data/tuned_generation/${SPLIT}-${MODEL_TYPE}.jsonl"
-  prompt: "Tell me a bio of {input}."
-  is_chat: True

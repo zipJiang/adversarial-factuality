@@ -1,4 +1,0 @@
-task:
-  type: "train-unli"
-  output_dir: ${OUTPUT_PATH}
-  num_train_epochs: 5

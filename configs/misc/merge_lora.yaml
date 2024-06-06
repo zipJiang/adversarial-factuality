@@ -1,5 +1,0 @@
-task:
-  type: "merge-and-unload"
-  model_name: ${BASE_MODEL}
-  adaptor_path: ${ADAPTOR_PATH}
-  save_path: ckpt/servables/${ONAME}
