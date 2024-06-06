@@ -62,7 +62,7 @@ task:
         model_name: "MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli"
         # model_name: "MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli"
         max_length: 256
-        internal_batch_size: 512
+        internal_batch_size: 256
     base_scorer:
       type: "safe-support"
       model_name: "mistralai/Mistral-7B-Instruct-v0.2"

@@ -11,3 +11,7 @@ from .peft_sft import PeftSFTTask
 from .merge_and_unload import MergeAndUnload
 from .local_generation_task import LocalGenerationTask
 from .score_analysis import ScoreAnalysisTask
+from .corrupt_generation import CorruptGenerationTask
+from .improve_corruped_generation import ImproveCorruptedGenerationTask
+from .explore_corruption_compensation import ExploreCorruptionCompensation
+from .corruption_compensation_final_version import CorruptionCompensationFinalVersion

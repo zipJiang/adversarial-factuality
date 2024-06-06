@@ -1,0 +1,9 @@
+task:
+  type: "explore-corruption-compensation"
+  corruption_dir: "data/scores/corrupted/"
+  # splitname: "repetitive"
+  method_map:
+    "FACTSCORE": "factscore"
+    "+FACTMORE": "dedup"
+  orig_path: "data/scores/tuned_generation/null-mistral-factscore.json"
+  output_path: "data/scores/corrupted/analysis.svg"

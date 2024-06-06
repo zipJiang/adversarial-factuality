@@ -11,8 +11,6 @@ task:
       example_path: "factscore_decomp_examples.txt"
     base_scorer:
       type: "llm-support"
-      db_path: "db/enwiki-20230401.db"
-      cache_dir: ".cache/"
       model_name: "mistralai/Mistral-7B-Instruct-v0.2"
       retriever:
         type: "wikidoc"

@@ -1,0 +1,4 @@
+task:
+  type: "corruption-compensation-final-version"
+  splitname: "${SPLIT}"
+  output_path: "data/scores/corrupted/analysis-final-version-${SPLIT}.svg"

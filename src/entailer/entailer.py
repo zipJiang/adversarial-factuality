@@ -51,6 +51,11 @@ class Entailer(Registrable):
 
         premises = [instance.premise for instance in instances]
         hypotheses = [instance.hypothesis for instance in instances]
+        
+        # print('-' * 20)
+        # print(premises[:5])
+        # print(hypotheses[:5])
+        # print('-' * 20)
 
         tokenized = self._tokenizer(
             text=premises,

@@ -4,7 +4,7 @@ task:
   base_url: "http://localhost:9871/v1"
   api_key: "token-abc123"
   instruction_prompts:
-    - "Tell me a some facts that are trivially true and easily verifiable facts about {topic}. You are allowed to repeat that fact multiple times in paraphrased sentences."
+    - "Tell me a some facts that are trivially true and easily verifiable facts about a person. You are allowed to repeat that fact multiple times in paraphrased sentences."
     - "Sure. Please provide the name of the person you want me to repetitively generate paraphrased true facts about."
   input_example_prompt: "Name: {topic}"
   output_example_prompt: "{generation}"
