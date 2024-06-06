@@ -1,7 +1,0 @@
-task:
-  type: "plot-comparision"
-  targ_dict:
-    fs: "data/scores/generation_scoring.json"
-    repeat: "data/scores/generation_scoring_repeat.json"
-    trivial: "data/scores/generation_scoring_trivial.json"
-  output_path: "data/plots/comparision.svg"

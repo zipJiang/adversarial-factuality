@@ -1,9 +1,0 @@
-task:
-  type: "calculate-correlation"
-  output_path: "data/plots/correlation.md"
-  data_dict:
-    "mistral-7b-fs": "data/scores/local_models/mistral-factscore.json"
-    "mistral-7b-gs": "data/scores/local_models/mistral-soft.json"
-    "mistral-7b-deberta-large": "data/scores/local_models/mistral-soft-deberta-large.json"
-    "gpt-3.5-fs": "data/scores/local_models/gpt3.5-factscore.json"
-    "gpt-3.5-fs-abs": "data/scores/local_models/gpt3.5-factscore-abstention-detection.json"
