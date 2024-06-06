@@ -2,7 +2,7 @@
 #SBATCH --job-name=score-all
 #SBATCH --mail-user=zjiang31@jh.edu
 #SBATCH --gres=gpu:1
-#SBATCH --partition=brtx6
+#SBATCH --partition=brtx6-ir
 
 split=$1
 model_type=$2
