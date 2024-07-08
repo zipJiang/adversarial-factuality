@@ -66,21 +66,23 @@ class RefinedDecomposer(Decomposer):
                 for sentence in self._nlp(instance_text).sents
             ]
 
-        base_outputs = self._base_decomposer(base_inputs)
+        base_outputs = self._base_decomposer(base_inputs)[0]
 
         if self._decontextualizer is not None:
             decontextualizer_inputs = [
-                DecontextScorerInstance(text=otp.text, topic=topic, sent=inp.source_text, source_text=inp.source_text)
-                for otp, inp in zip(base_outputs, base_inputs)
+                DecontextScorerInstance(text=otp.text, topic=topic, sent=instance.source_text, source_text=instance.source_text)
+                for otp in base_outputs
             ]
+            
+            # print([ip.text for ip in decontextualizer_inputs])
             decontextualized = self._decontextualizer(
                 decontextualizer_inputs, return_raw=False
             )
         else:
-            decontextualized = outputs
+            decontextualized = base_outputs
 
         # We need to evaluate relevancy if the relevancy_scorer is presented
-        if self._relevancy_score is not None:
+        if self._relevancy_scorer is not None:
             # construct RelevancyScorerInstance from ScorerInstance
             rs_inputs = [
                 RelevancyScorerInstance(text=opt.text, topic=opt.topic, sent=ipt.source_text, source_text=ipt.source_text)
