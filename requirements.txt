@@ -1,0 +1,21 @@
+auto_mix_prep==0.2.0
+datasets==2.18.0
+langchain==0.2.16
+langchain_community==0.2.16
+langchain-interface @ git+ssh://git@github.com/zipJiang/langchain-interface.git@0e723469c1dc0083584154b08774a09441a4f465
+matplotlib==3.8.4
+numpy==2.1.1
+overrides==7.7.0
+peft==0.11.1
+rank_bm25==0.2.2
+registrable @ git+ssh://git@github.com/zipJiang/registrable.git
+Requests==2.32.3
+scipy==1.14.1
+sentence_transformers==2.6.1
+spacy==3.7.4
+SPARQLWrapper==2.0.0
+SPARQLWrapper==2.0.0
+torch==2.0.1
+tqdm==4.66.2
+transformers==4.39.3
+ujson==5.10.0
