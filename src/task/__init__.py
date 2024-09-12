@@ -7,6 +7,7 @@ from .calculate_correlation import CalculateCorrelationTask
 from .filter_required_entites import FilterRequiredEntities
 from .sample_datapoints import SampleDatapoints
 from .create_training_examples import CreateTraniningExamples
+from .create_training_examples_wild_hallucinations import CreateTraniningExamplesWildHallucinations
 from .peft_sft import PeftSFTTask
 from .merge_and_unload import MergeAndUnload
 from .local_generation_task import LocalGenerationTask
@@ -15,3 +16,10 @@ from .corrupt_generation import CorruptGenerationTask
 from .improve_corruped_generation import ImproveCorruptedGenerationTask
 from .explore_corruption_compensation import ExploreCorruptionCompensation
 from .corruption_compensation_final_version import CorruptionCompensationFinalVersion
+from .preprocess_wildhallucination import PreprocessWildHallucinationTask
+from .preprocess_expertqa import PreprocessExpertQATask
+from .preprocess_longfact import PreprocessLongFactTask
+from .get_dataset_stats import GetDatasetStatsTask
+from .prepare_training_data import PrepareTrainingDataTask
+from .create_db_for_wildhallucinations import CreateDBForWildHallucinations
+from .parse_decomp_as_bleach import ParseDecompAsBleachTask

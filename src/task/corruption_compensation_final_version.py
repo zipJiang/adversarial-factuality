@@ -63,17 +63,17 @@ class CorruptionCompensationFinalVersion(Task):
     ):
         super().__init__()
 
-        self._corruption_dir = "data/scores/corrupted"
+        self._corruption_dir = "data/scores/new_corrupted/entertainment"
         self._splitname = splitname
         self._output_path = output_path
         self._label_map = {
-            "factscore": "FactScore",
-            "dedup": "Deduplication",
+            "factscore": "FActScore",
+            "dedup": "FActMore",
         }
         
         self._method_source_map = {
-            "factscore": "data/scores/tuned_generation/null-mistral-factscore.json",
-            "dedup": "data/scores/tuned_generation/null-mistral-dedup.json"
+            "factscore": "data/scores/new_data/mistral-entertainment-normal-factscore.json",
+            "dedup": "data/scores/new_data/mistral-entertainment-normal-core.json",
         }
 
     @overrides

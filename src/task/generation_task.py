@@ -1,10 +1,10 @@
 """Running a topic summarization generation.
 """
 
-import json
+import ujson as json
 import os
 from overrides import overrides
-from typing import Text
+from typing import Text, Optional
 from langchain_interface.instances import LLMQueryInstance
 from langchain_interface.interfaces import ChatInterface
 from .task import Task
@@ -12,7 +12,15 @@ from .task import Task
 
 @Task.register("generation")
 class GenerationTask(Task):
-    def __init__(self, topic_path: Text, output_path: Text, prompt: Text, model_name: Text, base_url: Text, api_key: Text):
+    def __init__(
+        self,
+        topic_path: Text,
+        output_path: Text,
+        prompt: Text,
+        model_name: Text,
+        api_key: Optional[Text] = None,
+        base_url: Optional[Text] = None,
+    ):
         """ """
         super().__init__()
 
@@ -23,19 +31,30 @@ class GenerationTask(Task):
         self.api_key = api_key
 
         with open(topic_path, "r", encoding="utf-8") as file_:
-            self.topics = [
-                LLMQueryInstance(id=lidx, input=line.strip(), output=None)
-                for lidx, line in enumerate(file_)
-            ]
+            # self.topics = [
+            #     LLMQueryInstance(id=lidx, input=line.strip(), output=None)
+            #     for lidx, line in enumerate(file_)
+            # ]
+            self.topics = []
+            
+            for lidx, line in enumerate(file_):
+                ldata = json.loads(line)
+                self.topics.append(
+                    LLMQueryInstance(
+                        id=lidx,
+                        input=ldata['topic'],
+                        output=None
+                    )
+                )
 
         # TODO: process bad outputs
         self.agent = ChatInterface(
             model_name=model_name,
-            batch_size=4,
-            max_tokens=1024,
-            system_message=None,
+            batch_size=64,
+            max_tokens=512,
             instruction_prompt=[],
             input_example_prompt=self.prompt,
+            input_parser=lambda x: {"topic": x.input},
             output_parser=lambda x: x,
             base_url=base_url,
             api_key=api_key

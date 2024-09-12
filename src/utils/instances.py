@@ -3,8 +3,13 @@
 
 from dataclasses import dataclass, field
 from typing import Text, Union, Optional, List
-from langchain_interface.instances import Instance
-from langchain_interface.instances import LLMQueryInstance
+from langchain_interface.instances import Instance, LLMQueryInstance
+
+
+@dataclass(frozen=True, eq=True)
+class InContextExample(Instance):
+    input_text: Text
+    generation: Text
 
 
 @dataclass(frozen=True, eq=True)

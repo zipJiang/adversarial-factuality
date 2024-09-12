@@ -10,12 +10,12 @@ from langchain_interface.interfaces import ChatInterface
 from langchain_interface.example_selectors import ConstantExampleSelector
 
 
-@Task.register("create-training-examples")
-class CreateTraniningExamples(Task):
+@Task.register("create-training-examples-wild-hallucinations")
+class CreateTraniningExamplesWildHallucinations(Task):
     """
     """
 
-    __NAME__ = "create-training-examples"
+    __NAME__ = "create-training-examples-wild-hallucinations"
     
     def __init__(
         self,
@@ -77,7 +77,7 @@ class CreateTraniningExamples(Task):
         with open(self.input_path, 'r', encoding='utf-8') as file_:
             # topics = [line.strip() for line in file_]
             data = [json.loads(line) for line in file_]
-            topics = [ldata['topic'] for ldata in data]
+            topics = [f"{ldata['topic']} in {ldata['category']}" for ldata in data]
             inputs = [LLMQueryInstance(id=0, input=topic, output=None) for topic in topics for _ in range(self.num_samples_per_topic)]
 
             outputs = self._agent(inputs, silence=False,)

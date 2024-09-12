@@ -21,7 +21,7 @@ from .task import Task
 
 
 os.environ['WANDB_PROJECT'] = "peft-sft-adverserial-factuality"
-os.environ['WANDB_LOG_MODEL'] = "checkpoint"
+# os.environ['WANDB_LOG_MODEL'] = "checkpoint"
 
 
 @Task.register('peft-sft')
@@ -142,7 +142,8 @@ class PeftSFTTask(Task):
             report_to="wandb",
             run_name=f"{self._run_stem}-{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}",
             logging_steps=20,
-            save_total_limit=1
+            save_total_limit=1,
+            auto_find_batch_size=True
         )
         
         # need to create data with the tokenizer
@@ -155,14 +156,14 @@ class PeftSFTTask(Task):
                         [
                         {
                             "role": "user",
-                            "content": f"Tell me a bio of {topic}."
+                            "content": f"Give me a report on {topic}." if not is_question else topic
                         },
                         {
                             "role": "assistant",
                             "content": output['parsed']
                         }
                     ]
-                    for topic, output in zip(examples['topic'], examples['output'])
+                    for topic, output, is_question in zip(examples['topic'], examples['output'], examples['is_question'])
                 ]
                 return {
                     "input_ids": tokenizer.apply_chat_template(
@@ -171,9 +172,11 @@ class PeftSFTTask(Task):
                 }
             else:
                 messages = [
-                    f"Tell me a bio of {topic}. {output['parsed']}"
-                    for topic, output in zip(examples['topic'], examples['output'])
+                    f"Give me a report on {topic}. {output['parsed']}" if not is_question else f"{topic} {output['parsed']}"
+                    for topic, output, is_question in zip(examples['topic'], examples['output'], examples['is_question'])
                 ]
+                
+                print(min([len(message) for message in messages]))
                 
                 return tokenizer(
                     messages,

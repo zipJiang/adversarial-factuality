@@ -3,7 +3,7 @@
 
 import os
 from overrides import overrides
-import json
+import ujson as json
 from tqdm import tqdm
 from typing import Text
 from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig
@@ -58,15 +58,23 @@ class LocalGenerationTask(Task):
         model = model.to("cuda:0")
         
         with open(self._topic_path, "r", encoding="utf-8") as file_:
-            topics = [
-                line.strip()
-                for line in file_
-            ]
+            # topics = [
+            #     line.strip()
+            #     for line in file_
+            # ]
+            topics = []
+            examined_ids = set()
+            
+            for line in file_:
+                ldata = json.loads(line)
+                if ldata['_id'] not in examined_ids:
+                    examined_ids.add(ldata['_id'])
+                    topics.append((ldata['topic'], ldata['is_question'], ldata['_id']))
 
         os.makedirs(os.path.dirname(self._output_path), exist_ok=True)
         with open(self._output_path, "w", encoding="utf-8") as file_:
-            for topic in tqdm(topics):
-                formatted = self._prompt.format(input=topic)
+            for topic, is_question, _id in tqdm(topics):
+                formatted = self._prompt.format(input=topic) if not is_question else topic
                 
                 if self._is_chat:
                     input_ids = self._tokenizer.apply_chat_template([
@@ -97,6 +105,7 @@ class LocalGenerationTask(Task):
                 sequence = self._tokenizer.decode(outputs.sequences[0][seq_len:], skip_special_tokens=True)
                 
                 file_.write(json.dumps({
+                    "_id": _id,
                     "topic": topic,
                     "output": {
                         "raw": sequence,

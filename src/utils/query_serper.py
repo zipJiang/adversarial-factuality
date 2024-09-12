@@ -236,8 +236,11 @@ class CachedSerperAPI(SerperAPI):
         """
         """
         # cursor.execute("INSERT INTO cache (query, result) VALUES (?, ?)", (query, result))
-        cursor.execute("INSERT INTO cache (query, k, result) VALUES (?, ?, ?)", (query, self.k, result))
-        self.conn.commit()
+        try:
+            cursor.execute("INSERT INTO cache (query, k, result) VALUES (?, ?, ?)", (query, self.k, result))
+            self.conn.commit()
+        except sqlite3.IntegrityError:
+            pass
         
         return cursor
     

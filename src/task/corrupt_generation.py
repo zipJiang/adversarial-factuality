@@ -2,13 +2,13 @@
 facts, and merge back with extant merging prompt.
 """
 
-import json
+import ujson as json
 import os
 from overrides import overrides
 from dataclasses import dataclass
 from random import Random
 from .task import Task
-from typing import Text, Dict, List, Optional
+from typing import Text, Dict, List, Optional, Union
 from langchain_interface.interfaces import ChatInterface
 from langchain.globals import set_llm_cache
 from langchain_community.cache import SQLiteCache
@@ -30,7 +30,7 @@ class CorruptGenerationTask(Task):
 
     def __init__(
         self,
-        fact_checker: Scorer,
+        # fact_checker: Scorer,
         generation_path: Text,
         corruption_ratio: float,
         output_dir: Text,
@@ -43,7 +43,7 @@ class CorruptGenerationTask(Task):
         super().__init__()
         
         self._generation_path = generation_path
-        self._fact_checker = fact_checker
+        # self._fact_checker = fact_checker
         self._corruption_ratio = corruption_ratio
         self._cache_path_overwrite = cache_path_overwrite
         self._merge_cache_path_overwrite = merge_cache_path_overwrite
@@ -72,7 +72,7 @@ class CorruptGenerationTask(Task):
             temperature=0.0,
             input_example_prompt="You will get an instruction and a set of facts that are true. Construct an answer using ONLY the facts provided, and try to use all facts as long as its possible. If no facts are given, reply to the instruction incorporating the fact that you dont know enough to fully respond. \n\nThe facts:\n {claim_string}\n\nThe instruction:\n{prompt}",
             input_parser=lambda x: {
-                "prompt": f"Tell me a bio of {x.topic}.",
+                "prompt": f"Give me a report on {x.topic}.",
                 "claim_string": {x.input},
             },
             output_parser=lambda x: x,
@@ -91,43 +91,48 @@ class CorruptGenerationTask(Task):
         for entry in generation:
             topic = entry["topic"]
             raw = entry["output"]["raw"]
-            claims = entry["meta"]["claims"]
+            claims: List[Dict[Text, Union[Text, int]]] = entry["meta"]["claims"]
 
             # create scorer instance
-            all_claims.extend(
-                [
-                    ScorerInstance(text=claim, source_text=raw, topic=topic)
-                    for claim in claims
-                ]
-            )
+            # all_claims.extend(
+            #     [
+            #         ScorerInstance(text=claim, source_text=raw, topic=topic)
+            #         for claim in claims
+            #     ]
+            # )
+            all_claims.extend({**claim, "topic": topic, "source_text": raw} for claim in claims)
 
-        scores = self._fact_checker(all_claims)
+        # scores = self._fact_checker(all_claims)
         
         os.makedirs(self._output_dir, exist_ok=True)
 
         set_llm_cache(SQLiteCache(self._cache_path_overwrite))
 
         corruption_input = [
-            LLMQueryInstance(id=idx, input=claim.text)
-            for idx, (claim, score) in enumerate(zip(all_claims, scores))
-            if score > 0.5 and self._random_obj.random() < self._corruption_ratio
+            LLMQueryInstance(id=idx, input=claim_dict['text'])
+            for idx, claim_dict in enumerate(all_claims)
+            if claim_dict['score'] > 0.5 and self._random_obj.random() < self._corruption_ratio
         ]
 
         corrupted = self._corrupt_agent(corruption_input)
 
         for ipt, opt in zip(corruption_input, corrupted):
-            all_claims[ipt.id] = ScorerInstance(
-                text=opt["parsed"],
-                source_text=all_claims[ipt.id].source_text,
-                topic=all_claims[ipt.id].topic,
-            )
+            # all_claims[ipt.id] = ScorerInstance(
+            #     text=opt["parsed"],
+            #     source_text=all_claims[ipt.id].source_text,
+            #     topic=all_claims[ipt.id].topic,
+            # )
+            all_claims[ipt.id] = {
+                **all_claims[ipt.id],
+                "text": opt["parsed"],
+            }
 
         claim_combinations = {}
 
         for claim in all_claims:
-            if claim.topic not in claim_combinations:
-                claim_combinations[claim.topic] = []
-            claim_combinations[claim.topic].append(claim.text)
+            if claim['topic'] not in claim_combinations:
+                claim_combinations[claim['topic']] = []
+            claim_combinations[claim['topic']].append(claim['text'])
 
         with open(os.path.join(self._output_dir, "corrupted_claims.json"), "w", encoding="utf-8") as file_:
             json.dump(claim_combinations, file_, ensure_ascii=False, indent=4)

@@ -8,6 +8,19 @@ from tqdm import tqdm
 T = TypeVar("T")
 
 
+def batched(
+    items: List[T],
+    batch_size: int
+) -> List[List[T]]:
+    """
+    """
+    
+    return [
+        items[i:i+batch_size]
+        for i in range(0, len(items), batch_size)
+    ]
+
+
 def paginate_func(
     items: List[Any],
     page_size: int,

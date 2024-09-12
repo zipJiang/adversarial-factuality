@@ -50,6 +50,8 @@ class ImproveCorruptedGenerationTask(Task):
         def _improve_instance(instance, improve_base, k: int) -> Dict[Text, Any]:
             instance = deepcopy(instance)
             candidates = [sent.text for sent in self._nlp(improve_base['output']['raw']).sents]
+            if len(candidates) < k:
+                candidates = candidates * (k // len(candidates) + 1)
             selected = self._random_obj.sample(candidates, k)
 
             instance['output']['raw'] = ' '.join([instance['output']['raw']] + selected)
@@ -72,7 +74,7 @@ class ImproveCorruptedGenerationTask(Task):
                 rimprove_list.append(rimproved)
                 
             # now we save the improved data to the disk
-            with open(os.path.join(self._generation_dir, f"corrupted-info-{num_facts}.jsonl"), 'w', encoding='utf-8') as file_:
+            with open(os.path.join(self._generation_dir, f"corrupted-informative-{num_facts}.jsonl"), 'w', encoding='utf-8') as file_:
                 for instance in iimprove_list:
                     file_.write(json.dumps(instance, ensure_ascii=False) + '\n')
 

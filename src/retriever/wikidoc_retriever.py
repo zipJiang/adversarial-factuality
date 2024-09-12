@@ -12,6 +12,7 @@ import numpy as np
 import pickle as pkl
 
 from rank_bm25 import BM25Okapi
+from tqdm import tqdm
 from overrides import overrides
 from typing import List, Dict, Text, Any
 from .retriever import Retriever
@@ -26,7 +27,12 @@ class DocDB(object):
     Implements get_doc_text(doc_id).
     """
 
-    def __init__(self, db_path=None, data_path=None):
+    def __init__(
+        self,
+        db_path=None,
+        data_path=None,
+        data_dict=None
+    ):
         self.db_path = db_path
         self.connection = sqlite3.connect(self.db_path, check_same_thread=False)
 
@@ -35,10 +41,15 @@ class DocDB(object):
 
         if len(cursor.fetchall()) == 0:
             assert (
-                data_path is not None
+                data_path is not None or data_dict is not None
             ), f"{self.db_path} is empty. Specify `data_path` in order to create a DB."
-            print(f"{self.db_path} is empty. start building DB from {data_path}...")
-            self.build_db(self.db_path, data_path)
+            
+            if data_dict is not None:
+                print(f"{self.db_path} is empty. start building DB from data_dict...")
+                self.build_db_from_dict(self.db_path, data_dict)
+            else:
+                print(f"{self.db_path} is empty. start building DB from {data_path}...")
+                self.build_db(self.db_path, data_path)
 
     def __enter__(self):
         return self
@@ -52,6 +63,74 @@ class DocDB(object):
 
     def close(self):
         """Close the connection to the database."""
+        self.connection.close()
+        
+    def build_db_from_dict(self, db_path, data_dict: Dict[Text, Dict[Text, List[Text]]]):
+        """In contrast to the build_db method, this method
+        takes a dict from topic -> list of texts.
+        """
+        from transformers import RobertaTokenizer
+
+        tokenizer = RobertaTokenizer.from_pretrained("roberta-large")
+
+        titles = set()
+        output_lines = []
+        tot = 0
+        start_time = time.time()
+        c = self.connection.cursor()
+        c.execute("CREATE TABLE documents (title PRIMARY KEY, text);")
+
+        for title, text_dict in tqdm(data_dict.items()):
+            # We have two types of passages, one is already chunked, and the other is not.
+            if title in titles:
+                continue
+            titles.add(title)
+
+            passages = [[]]
+            
+            for sent_idx, sent in enumerate(text_dict['need_processing']):
+                # try:
+                #     assert len(sent.strip()) > 0, f"Empty sentence: {sent}"
+                # except AssertionError as e:
+                #     continue
+                if len(sent.strip()) == 0:
+                    continue
+                tokens = tokenizer(sent)["input_ids"]
+                max_length = MAX_LENGTH - len(passages[-1])
+                if len(tokens) <= max_length:
+                    passages[-1].extend(tokens)
+                else:
+                    passages[-1].extend(tokens[:max_length])
+                    offset = max_length
+                    while offset < len(tokens):
+                        passages.append(tokens[offset : offset + MAX_LENGTH])
+                        offset += MAX_LENGTH
+
+            psgs = text_dict.get('already_processed', []) + [
+                tokenizer.decode(tokens)
+                for tokens in passages
+                if np.sum([t not in [0, 2] for t in tokens]) > 0
+            ]
+            text = SPECIAL_SEPARATOR.join(psgs)
+            output_lines.append((title, text))
+            tot += 1
+
+            if len(output_lines) == 1000000:
+                c.executemany("INSERT INTO documents VALUES (?,?)", output_lines)
+                output_lines = []
+                print(
+                    "Finish saving %dM documents (%dmin)"
+                    % (tot / 1000000, (time.time() - start_time) / 60)
+                )
+
+        if len(output_lines) > 0:
+            c.executemany("INSERT INTO documents VALUES (?,?)", output_lines)
+            print(
+                "Finish saving %dM documents (%dmin)"
+                % (tot / 1000000, (time.time() - start_time) / 60)
+            )
+
+        self.connection.commit()
         self.connection.close()
 
     def build_db(self, db_path, data_path):
@@ -123,6 +202,7 @@ class DocDB(object):
         cursor.execute("SELECT text FROM documents WHERE title = ?", (title,))
         results = cursor.fetchall()
         results = [r for r in results]
+
         cursor.close()
         assert (
             results is not None and len(results) == 1
