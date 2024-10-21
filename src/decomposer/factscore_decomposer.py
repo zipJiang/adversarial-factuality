@@ -6,9 +6,9 @@ atomic facts.
 import spacy
 from overrides import overrides
 from typing import List, Text, Optional, Tuple
+from langchain_openai import ChatOpenAI
 from langchain_interface.instances import LLMQueryInstance
 from langchain_interface.example_selectors import ConstantExampleSelector
-from langchain_interface.interfaces import ChatInterface
 from ..utils.instances import ScorerInstance
 from .decomposer import Decomposer
 
@@ -63,19 +63,23 @@ class FActScoreDecomposer(Decomposer):
                 }
                 self._example_selector.add_example(example)
 
-        self._agent = ChatInterface(
+        # self._agent = ChatInterface(
+        #     model_name=self._model_name,
+        #     batch_size=32,
+        #     max_tokens=512,
+        #     system_message=None,
+        #     instruction_prompt=[],
+        #     input_example_prompt="Please breakdown the following sentence into independent facts: {input}",
+        #     output_example_prompt="{output}",
+        #     output_parser=_split_atomic_facts,
+        #     example_selector=self._example_selector,
+        #     base_url=self._base_url,
+        #     api_key=self._api_key,
+        #     max_concurrency=32,
+        # )
+        
+        self._llm = ChatOpenAI(
             model_name=self._model_name,
-            batch_size=32,
-            max_tokens=512,
-            system_message=None,
-            instruction_prompt=[],
-            input_example_prompt="Please breakdown the following sentence into independent facts: {input}",
-            output_example_prompt="{output}",
-            output_parser=_split_atomic_facts,
-            example_selector=self._example_selector,
-            base_url=self._base_url,
-            api_key=self._api_key,
-            max_concurrency=32,
         )
         
     @overrides
