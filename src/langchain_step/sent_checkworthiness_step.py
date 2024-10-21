@@ -23,13 +23,13 @@ from ..utils.prompts import CHECKWORTHY_PROMPT
 
 @dataclass(frozen=True, eq=True)
 class SentCheckworthinessResponse(LLMResponse):
-    check_worthiness: List[float]
+    checkworthiness: List[float]
 
     
 class SentCheckworthinessOutputParser(BaseOutputParser[SentCheckworthinessResponse]):
     def parse(self, text: Text) -> Dict:
         output = text.strip().lower()
-        return [1.0 if re.search("yes", rsb) is not None else 0.0 for rsb in output.split(",")]
+        return SentCheckworthinessResponse(messages=text, checkworthiness=[1.0 if re.search("yes", rsb) is not None else 0.0 for rsb in output.split(",")])
     
     def _type(self) -> Text:
         return "sent-checkworthiness"

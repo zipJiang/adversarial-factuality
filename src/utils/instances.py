@@ -3,7 +3,7 @@
 
 from dataclasses import dataclass, field
 from typing import Text, Union, Optional, List
-from langchain_interface.instances import Instance, LLMQueryInstance
+from langchain_interface.instances import Instance
 
 
 @dataclass(frozen=True, eq=True)
@@ -35,6 +35,14 @@ class DecontextScorerInstance(ScorerInstance):
 @dataclass(frozen=True, eq=True)
 class RelevancyScorerInstance(ScorerInstance):
     sent: Text
+
+    
+@dataclass(frozen=True, eq=True)
+class LLMQueryInstance(Instance):
+    id: Optional[int] = None
+    input: Optional[Text] = None
+    output: Optional[Text] = None
+    
     
 @dataclass(frozen=True, eq=True)
 class DecontextInstance(LLMQueryInstance):

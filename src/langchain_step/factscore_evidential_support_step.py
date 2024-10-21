@@ -43,7 +43,10 @@ class FActScoreEvidentialSupportOutputParser(BaseOutputParser[FActScoreEvidentia
             is_supported = all([keyword not in generated_answer for keyword in ["not", "cannot", "unknown", "information"]])
             is_supported = 1.0 if is_supported else 0.0
             
-        return is_supported
+        return FActScoreEvidentialSupportResponse(
+            messages=text,
+            evidential_support=is_supported
+        )
     
     @property
     def _type(self) -> Text:

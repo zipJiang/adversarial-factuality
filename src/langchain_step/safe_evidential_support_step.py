@@ -42,7 +42,7 @@ class SAFEEvidentialSupportOutputParser(BaseOutputParser[SAFEEvidentialSupportRe
         if answer == "supported" or answer == "\"supported\"":
             is_supported = 1.0
         
-        return is_supported
+        return SAFEEvidentialSupportResponse(messages=text, evidential_support=is_supported)
     
     @property
     def _type(self) -> Text:

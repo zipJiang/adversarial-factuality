@@ -4,9 +4,7 @@
 import spacy
 from overrides import overrides
 from typing import List, Text, Optional, Tuple
-from langchain_interface.instances import LLMQueryInstance
 from langchain_interface.example_selectors import ConstantExampleSelector
-from langchain_interface.interfaces import ChatInterface
 from ..utils.instances import (
     ScorerInstance,
     DecontextScorerInstance,

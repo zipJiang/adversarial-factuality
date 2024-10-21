@@ -16,7 +16,7 @@ from src.abstention_detector import FActScoreAbstentionDetector
 from src.retriever.retriever import Retriever
 from src.utils.instances import ScorerInstance
 from src.decomposer.factscore_decomposer import FActScoreDecomposer
-from src.decomposer.deduplicated_decompser import DeduplicatedDecomposer
+from src.decomposer.deduplicated_decomposer import DeduplicatedDecomposer
 from src.scorer import (
     Scorer,
     DecomposeScorer,

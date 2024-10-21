@@ -6,10 +6,15 @@ import numpy as np
 from .retriever import Retriever
 from typing import Dict, List, Text, Tuple, Any
 from overrides import overrides
-from langchain_interface.interfaces import ChatInterface
+from langchain_core.runnables.config import RunnableConfig
+from langchain_openai import ChatOpenAI
 from ..utils.prompts import NEXT_SEARCH_PROMPT
 from ..utils.query_serper import CachedSerperAPI
 from ..utils.instances import NextSearchInstance
+from ..langchain_step.next_search_proposal_step import (
+    NextSearchProposalStep,
+    NextSearchProposalResponse,
+)
 
 
 @Retriever.register("serper")
@@ -34,34 +39,47 @@ class SerperRetriever(Retriever):
             k=top_k
         )
         
-        def _parse_output_with_exception_handler(output: Text) -> Text:
-            _parse_output = lambda x: re.search(r"```(.+)```", x, re.DOTALL).group(1).strip()
+        # def _parse_output_with_exception_handler(output: Text) -> Text:
+        #     _parse_output = lambda x: re.search(r"```(.+)```", x, re.DOTALL).group(1).strip()
 
-            # define a second strip function that extract the content within the double quote
-            _second_strip = lambda x: re.search(r"\"(.+)\"", x).group(1).strip()
+        #     # define a second strip function that extract the content within the double quote
+        #     _second_strip = lambda x: re.search(r"\"(.+)\"", x).group(1).strip()
             
-            try:
-                first_strip = _parse_output(output)
-                if first_strip.startswith("\"") or first_strip.startswith("markdown"):
-                    return _second_strip(first_strip)
-                return first_strip
-            except AttributeError:
-                return "N/A"
+        #     try:
+        #         first_strip = _parse_output(output)
+        #         if first_strip.startswith("\"") or first_strip.startswith("markdown"):
+        #             return _second_strip(first_strip)
+        #         return first_strip
+        #     except AttributeError:
+        #         return "N/A"
         
-        self._agent = ChatInterface(
+        # self._agent = ChatInterface(
+        #     model_name=model_name,
+        #     batch_size=32,
+        #     max_tokens=512,
+        #     system_message=None,
+        #     instruction_prompt=None,
+        #     input_example_prompt=NEXT_SEARCH_PROMPT,
+        #     input_parser=lambda x: {"input": x.input.strip(), "knowledge": '\n'.join(x.knowledge) if x.knowledge else 'N/A'},
+        #     # Extract from ``` ```
+        #     output_parser=_parse_output_with_exception_handler,
+        #     max_concurrency=32,
+        #     base_url=base_url,
+        #     api_key=api_key,
+        # )
+        
+        self._llm = ChatOpenAI(
             model_name=model_name,
-            batch_size=32,
-            max_tokens=512,
-            system_message=None,
-            instruction_prompt=None,
-            input_example_prompt=NEXT_SEARCH_PROMPT,
-            input_parser=lambda x: {"input": x.input.strip(), "knowledge": '\n'.join(x.knowledge) if x.knowledge else 'N/A'},
-            # Extract from ``` ```
-            output_parser=_parse_output_with_exception_handler,
-            max_concurrency=32,
             base_url=base_url,
             api_key=api_key,
+            # top_p=0.98,
+            model_kwargs={"top_p": 0.98},
+            temperature=0.0,
+            max_tokens=512,
         )
+        self._runnable_config = RunnableConfig(max_concurrency=32)
+        
+        self._agent = NextSearchProposalStep().chain_llm(self._llm)
         
     @overrides
     def get_passages(self, topic: Text, question: Text, k: int) -> List[Dict[Text, Any]]:
@@ -77,7 +95,7 @@ class SerperRetriever(Retriever):
             
             needs_further_search = False
 
-            query = self._agent([search_instance], silence=True)[0]['parsed']
+            query = self._agent.invoke(search_instance, config=self._runnable_config).next_query
             
             if query == "N/A":
                 return search_instance, False
@@ -130,7 +148,7 @@ class SerperRetriever(Retriever):
             status_indicator = np.zeros(len(search_instances), dtype=np.bool_)
             
             # first query the agent for query updates
-            queries = [item['parsed'] for item in self._agent(search_instances, silence=False)]
+            queries = [item.search_query for item in self._agent.batch(search_instances, config=self._runnable_config)]
             
             status_updates = np.array([query != "N/A" for query in queries], dtype=np.bool_)
             status_indicator = (status_indicator | status_updates).tolist()

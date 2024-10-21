@@ -6,14 +6,10 @@ import string
 import ujson as json
 from typing import Text, Dict, List, Union, Optional
 import numpy as np
-import os
 from overrides import overrides
 from ..entailer.entailer import Entailer, EntailerInstance
-from langchain_interface.instances import LLMQueryInstance
-from langchain_interface.interfaces import ChatInterface
 from ..utils.instances import ScorerInstance
 from .scorer import Scorer
-from ..retriever.retriever import Retriever
 
 
 @Scorer.register("unli-confidence-boost")

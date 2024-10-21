@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from registrable import Registrable
+from tqdm import tqdm
 import torch
 from timeit import timeit
 from transformers import (
@@ -19,7 +20,7 @@ class EntailerInstance:
     hypothesis: Text
 
 
-class Entailer:
+class Entailer(Registrable):
     __LABEL_MAP__ = [1, 0, 0]
 
     def __init__(
@@ -158,3 +159,6 @@ class Entailer:
         indices = torch.argmax(outputs.logits, dim=1).int().cpu().numpy().tolist()
 
         return [float(self.__LABEL_MAP__[index]) for index in indices]
+    
+    
+Entailer.register("default")(Entailer)

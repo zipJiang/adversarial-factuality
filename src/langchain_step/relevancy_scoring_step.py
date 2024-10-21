@@ -31,7 +31,10 @@ class RelevancyOutputParser(BaseOutputParser[RelevancyResponse]):
         search_result = re.search(r"\[(.*?)\]", text)
         if search_result is None:
             return 0.0
-        return 1.0 if search_result.group(1).strip() == "Foo" else 0.0
+        return RelevancyResponse(
+            messages=text,
+            relevancy_score=1.0 if search_result.group(1).strip() == "Foo" else 0.0,
+        )
     
     @property
     def _type(self) -> Text:

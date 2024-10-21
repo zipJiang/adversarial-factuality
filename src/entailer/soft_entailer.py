@@ -4,7 +4,7 @@
 from .entailer import Entailer, EntailerInstance
 from overrides import overrides
 import torch
-from typing import Text, List
+from typing import Text, List, Optional
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 
@@ -16,12 +16,14 @@ class SoftEntailer(Entailer):
         device: Text = "cuda",
         internal_batch_size: int = 16,
         max_length: int = 512,
+        cache_dir: Optional[Text] = None,
     ):
         super().__init__(
             model_name=model_name,
             device=device,
             internal_batch_size=internal_batch_size,
             max_length=max_length,
+            cache_dir=cache_dir,
         )
 
     @overrides

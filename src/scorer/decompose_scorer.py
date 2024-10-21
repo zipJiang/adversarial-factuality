@@ -6,7 +6,6 @@ individual facts and scoring each fact individually.
 
 from registrable import Lazy
 from dataclasses import dataclass, asdict
-from langchain_interface.interfaces import ChatInterface
 import multiprocessing
 import logging
 from multiprocessing import Process, Pipe

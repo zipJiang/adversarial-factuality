@@ -23,13 +23,16 @@ from ..utils.prompts import SPECIFY_CHECKWORTHY_CATEGORY_PROMPT
 
 @dataclass(frozen=True, eq=True)
 class ClaimCheckworthinessResponse(LLMResponse):
-    check_worthiness: float
+    checkworthiness: float
 
     
 @dataclass(frozen=True, eq=True)
 class ClaimCheckworthinessOutputParser(BaseOutputParser[ClaimCheckworthinessResponse]):
     def parse(self, text: Text) -> Dict:
-        return 1.0 if abs(float(text.strip()) - 1.0) < 1e-6 else 0.0
+        return ClaimCheckworthinessResponse(
+            messages=text,
+            checkworthiness=1.0 if abs(float(text.strip()) - 1.0) < 1e-6 else 0.0,
+        )
     
     @property
     def _type(self) -> Text:

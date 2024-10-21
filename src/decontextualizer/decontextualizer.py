@@ -5,9 +5,12 @@ self-contained and context-free.
 import logging
 from registrable import Registrable
 from typing import Text, Optional, List, Union, Dict, Any
-from langchain_interface.interfaces import ChatInterface
-from langchain_interface.example_selectors import ConstantExampleSelector
-from ..utils.prompts import DECONTEXTUALIZE_PROMPT
+from langchain_core.runnables.config import RunnableConfig
+from langchain_openai import ChatOpenAI
+from langchain_interface.steps.decontextualization_step import (
+    DecontextualizationStep,
+    DecontextualizationResponse
+)
 from ..utils.instances import ScorerInstance, DecontextInstance, DecontextScorerInstance
 
 
@@ -22,65 +25,80 @@ class Decontextualizer(Registrable):
     def __init__(
         self,
         model_name: Text,
-        example_path: Text,
+        # example_path: Text,
         base_url: Optional[Text] = None,
         api_key: Optional[Text] = None,
     ):
         """ """
         super().__init__()
-        self._example_path = example_path
+        # self._example_path = example_path
         self._model_name = model_name
         self._base_url = base_url
         self._api_key = api_key
 
-        self._example_selector = ConstantExampleSelector()
-        with open(example_path, "r", encoding="utf-8") as file_:
-            text = file_.read()
-            examples = text.split("#####")
-            examples = [
-                [item for item in example.strip().split("-----")]
-                for example in examples
-            ]
-            for example in examples:
-                assert len(example) == 3, f"Invalid example format: {example}"
-                self._example_selector.add_example(
-                    {
-                        "statement": example[0],
-                        "response": example[1],
-                        "revised": example[2],
-                    }
-                )
+        # self._example_selector = ConstantExampleSelector()
+        # with open(example_path, "r", encoding="utf-8") as file_:
+        #     text = file_.read()
+        #     examples = text.split("#####")
+        #     examples = [
+        #         [item for item in example.strip().split("-----")]
+        #         for example in examples
+        #     ]
+        #     for example in examples:
+        #         assert len(example) == 3, f"Invalid example format: {example}"
+        #         self._example_selector.add_example(
+        #             {
+        #                 "statement": example[0],
+        #                 "response": example[1],
+        #                 "revised": example[2],
+        #             }
+        #         )
                 
-        def _parse_output(output: Text) -> Text:
-            apl = lambda x: x.strip().split("```")[1].strip()
-            result = ""
-            try:
-                result = apl(output)
-            except IndexError:
-                logger.warning(f"Failed to parse Decontextualizer output: \"{output}\"")
+        # def _parse_output(output: Text) -> Text:
+        #     apl = lambda x: x.strip().split("```")[1].strip()
+        #     result = ""
+        #     try:
+        #         result = apl(output)
+        #     except IndexError:
+        #         logger.warning(f"Failed to parse Decontextualizer output: \"{output}\"")
                 
-            return result
+        #     return result
 
-        self._agent = ChatInterface(
+        # self._agent = ChatInterface(
+        #     model_name=self._model_name,
+        #     batch_size=32,
+        #     max_tokens=512,
+        #     system_message=None,
+        #     instruction_prompt=[
+        #         DECONTEXTUALIZE_PROMPT,
+        #         "Sure, please provide me with statements you want me to revise.",
+        #     ],
+        #     example_selector=self._example_selector,
+        #     input_example_prompt="STATEMENT:\n{statement}\n\nRESPONSE:\n{response}",
+        #     output_example_prompt="REVISED STATEMENT:\n{revised}",
+        #     input_parser=lambda x: {"statement": x.input, "response": x.sentence},
+        #     # Should extract the one within wrapping ``` and strip
+        #     output_parser=_parse_output,
+        #     temperature=0.0,
+        #     base_url=self._base_url,
+        #     api_key=self._api_key,
+        #     max_concurrency=32,
+        # )
+
+        self._llm = ChatOpenAI(
             model_name=self._model_name,
-            batch_size=32,
-            max_tokens=512,
-            system_message=None,
-            instruction_prompt=[
-                DECONTEXTUALIZE_PROMPT,
-                "Sure, please provide me with statements you want me to revise.",
-            ],
-            example_selector=self._example_selector,
-            input_example_prompt="STATEMENT:\n{statement}\n\nRESPONSE:\n{response}",
-            output_example_prompt="REVISED STATEMENT:\n{revised}",
-            input_parser=lambda x: {"statement": x.input, "response": x.sentence},
-            # Should extract the one within wrapping ``` and strip
-            output_parser=_parse_output,
-            temperature=0.0,
             base_url=self._base_url,
             api_key=self._api_key,
+            # top_p=0.98,
+            model_kwargs={"top_p": 0.98},
+            temperature=0.0,
+            max_tokens=512,
+        )
+        self._runnable_config = RunnableConfig(
             max_concurrency=32,
         )
+
+        self._agent = DecontextualizationStep().chain_llm(self._llm)
 
     def __call__(
         self, instance: Union[DecontextScorerInstance, List[DecontextScorerInstance]],
@@ -103,35 +121,53 @@ class Decontextualizer(Registrable):
         
     def _decontextualize(self, instance: DecontextScorerInstance) -> Dict[Text, Any]:
         """ """
-        instance = DecontextInstance(
-            id=0,
-            input=instance.text,
-            sentence=instance.sent,
-        )
-        result = self._agent([instance], silence=True)[0]
+        # instance = DecontextInstance(
+        #     id=0,
+        #     input=instance.text,
+        #     sentence=instance.sent,
+        # )
         
-        if result["parsed"] == "":
-            result['parsed'] = instance.text
+        instance = {
+            "input": instance.text,
+            "context": instance.sent
+        }
+        
+        result = self._agent.invoke(instance, config=self._runnable_config)
+        
+        # if result["parsed"] == "":
+        #     result['parsed'] = instance.text
             
-        return result
+        return {
+            "raw": result.messages,
+            "parsed": result.revised if result.revised is not None else instance.text,
+        }
     
     def _batch_decontextualize(self, instances: List[DecontextScorerInstance]) -> List[Dict[Text, Any]]:
         """ """
         instances = [
-            DecontextInstance(
-                id=i,
-                input=instance.text,
-                sentence=instance.sent,
-            )
-            for i, instance in enumerate(instances)
+            # DecontextInstance(
+            #     id=i,
+            #     input=instance.text,
+            #     sentence=instance.sent,
+            # )
+            {
+                "input": instance.text,
+                "context": instance.sent,
+            }
+            for instance in instances
         ]
         
-        results = self._agent(instances, silence=False)
+        results = self._agent.batch(instances, config=self._runnable_config)
         
         # If the decontextualizer fails to decontextualize, return the original text
-        for i, result in enumerate(results):
-            if result["parsed"] == "":
-                result['parsed'] = instances[i].input
+        [
+            {
+                "raw": result.messages,
+                "parsed": result.revised if result.revised is not None else instances[i].input,
+            } for i, result in enumerate(results)
+        ]
+            # if result["parsed"] == "":
+            #     result['parsed'] = instances[i].input
                 
         return results
 
