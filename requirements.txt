@@ -17,6 +17,6 @@ spacy==3.7.4
 SPARQLWrapper==2.0.0
 SPARQLWrapper==2.0.0
 torch==2.0.1
-tqdm==4.66.2
+tqdm
 transformers==4.39.3
 ujson==5.10.0
