@@ -245,28 +245,6 @@ class DeduplicatedDecomposer(Decomposer):
         # grouped_instances: Dict[Text, Dict[Text, Dict[Text, Union[int, float]]]] = {}
         grouped_instances: Dict[Text, List[Dict[Text, Union[int, float]]]] = {}
 
-        # for er, (iidx, (idx, instance)) in zip(sent_ent_results, instance_tuples_wreal_idx):
-        #     if idx not in grouped_instances:
-        #         grouped_instances[idx] = {}
-        #     if instance.text not in grouped_instances[idx]:
-        #         grouped_instances[idx][instance.text] = {
-        #             "score": 0.0,
-        #             "from_index": iidx
-        #         }
-
-        #     grouped_instances[idx][instance.text] = {
-        #         "score": max(grouped_instances[idx][instance.text]['score'], er),
-        #         "from_index": iidx if er > grouped_instances[idx][instance.text]['score'] else grouped_instances[idx][instance.text]['from_index']
-        #     }
-
-        # grouped_texts = {
-        #     idx: [
-        #         (score_dict['from_index'], text)
-        #         for text, score_dict in instances.items() if score_dict['score'] > 0.5
-        #     ]
-        #     for idx, instances in grouped_instances.items()
-        # }
-
         for iidx, (er, old_index) in enumerate(zip(
             sent_ent_results, index_swap
         )):
