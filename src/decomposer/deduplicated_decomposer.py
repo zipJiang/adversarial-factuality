@@ -234,7 +234,8 @@ class DeduplicatedDecomposer(Decomposer):
             [
                 EntailerInstance(premise=instance.sent, hypothesis=instance.text)
                 for _, instance in instance_tuples
-            ]
+            ],
+            desc="Premise=Sent, Hypothesis=Claim",
         )
         index_swap = [
             tidx
@@ -275,7 +276,7 @@ class DeduplicatedDecomposer(Decomposer):
                         )
                     )
 
-        parwise_entailment_scoring = self._entailer(pairwise_entailment_inputs)
+        parwise_entailment_scoring = self._entailer(pairwise_entailment_inputs, desc="Pairwise Entailment")
 
         # create intra_entailment_matrix for each of the group
         intra_entailment_matrices = {}
@@ -350,7 +351,7 @@ class DeduplicatedDecomposer(Decomposer):
             EntailerInstance(premise=instance.sent, hypothesis=instance.text)
             for instance in instances
         ]
-        sent_ent_results = self._entailer(sent_filter_instances)
+        sent_ent_results = self._entailer(sent_filter_instances, desc="Premise=Sent, Hypothesis=Claim")
 
         # filter out claims that are not entailed
         instances_wreal_idx = [
@@ -380,7 +381,7 @@ class DeduplicatedDecomposer(Decomposer):
                         )
                     )
 
-        pairwise_entailment_scoring = self._entailer(pairwise_entailment_instances)
+        pairwise_entailment_scoring = self._entailer(pairwise_entailment_instances, desc="Pairwise Entailment")
 
         intra_ent_mat = np.array(
             [
