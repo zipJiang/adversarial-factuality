@@ -25,7 +25,7 @@ from src.utils.common import (
 class PostProcessingTask(BaseTask):
     """ """
     
-    __VERSION__ = "0.0.3"
+    __VERSION__ = "0.0.4"
 
     def __init__(
         self,

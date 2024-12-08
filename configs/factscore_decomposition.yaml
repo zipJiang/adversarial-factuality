@@ -1,0 +1,11 @@
+type: "decomposition"
+input_dir: "data/task_outputs/factscore_abstention/"
+output_dir: "data/task_outputs/factscore_decomposition/"
+decomposer:
+  type: "factscore"
+  model_name: "mistralai/Mistral-7B-Instruct-v0.2"
+  sentencize: true
+  base_url: "http://localhost:9871/v1"
+  api_key: "token-abc123"
+dependencies:
+  abstention_detection: "configs/factscore_abstention_detection.yaml"

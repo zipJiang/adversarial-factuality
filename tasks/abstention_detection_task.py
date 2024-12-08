@@ -24,7 +24,7 @@ from src.utils.common import (
 class AbstentionDetectionTask(BaseTask):
     """ """
     
-    __VERSION__ = "0.0.5"
+    __VERSION__ = "0.0.6"
     
     def __init__(self, input_dir: Text, output_dir: Text, abstention_detector: BaseAbstentionDetector):
         super().__init__(output_dir=output_dir)
@@ -45,7 +45,7 @@ class AbstentionDetectionTask(BaseTask):
                 generation=instance.generation,
                 meta={
                     **instance.meta,
-                    "is_abstained": self._abstention_detector(response=instance.generation)
+                    "is_abstention": self._abstention_detector(response=instance.generation)
                 }
             )
             for instance in self._reader(

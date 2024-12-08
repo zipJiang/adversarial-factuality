@@ -45,15 +45,15 @@ class CorePostProcessor(BasePostProcessor):
         self, instance: DecomposedLLMGenerationInstance
     ) -> DecomposedLLMGenerationInstance:
         """ """
-        claims = instance.claims
-        sent_entailment_scores = [1] * len(claims)
+        original_claims = instance.claims
+        sent_entailment_scores = [1] * len(original_claims)
 
-        if all("source_text" in claim.meta for claim in claims):
+        if all("source_text" in claim.meta for claim in original_claims):
             sent_entailment_scores = self._entailer([
                 EntailerInstance(
                     premise=claim.meta["source_text"], hypothesis=claim.claim
                 )
-                for claim in claims
+                for claim in original_claims
             ], desc="StE Entailment")
         else:
             logger.warning(
@@ -62,7 +62,7 @@ class CorePostProcessor(BasePostProcessor):
                 "Using default sent_entailment_scores of 1."
             )
 
-        claims = [claim for claim, score in zip(claims, sent_entailment_scores) if score > 0.5]
+        claims = [claim for claim, score in zip(original_claims, sent_entailment_scores) if score > 0.5]
         claims = self._lexical_dedup(claims)
         
         pair_to_id = {}
@@ -100,7 +100,18 @@ class CorePostProcessor(BasePostProcessor):
             id_=instance.id_,
             generation=instance.generation,
             claims=[claims[i] for i in non_zero_selection_indices],
-            meta={**instance.meta, f"{self._namespace}": {"ratio": len(non_zero_selection_indices) / len(instance.claims)}}
+            meta={**instance.meta, f"{self._namespace}": {
+                "ratio": len(non_zero_selection_indices) / len(instance.claims),
+                "selected_indices": non_zero_selection_indices,
+                "original_claims": [
+                    {
+                        # flatten
+                        "index": claim.meta['claim_index'],
+                        "text": claim.claim,
+                    }
+                    for claim in instance.claims
+                ]
+            }}
         )
         
     def _lexical_dedup(self, claims: List[AtomicClaim]) -> List[AtomicClaim]:
@@ -149,11 +160,13 @@ class CorePostProcessor(BasePostProcessor):
         if sent_entailment_inputs:
             # entailment filtering
             sent_entailment_scores = self._entailer(sent_entailment_inputs, desc="StE Entailment")
+            ste_filtered_claims = [
+                [claim for cidx, claim in enumerate(claims) if sent_entailment_scores[iidx_cidx_to_id[(iidx, cidx)]] > 0.5]
+                for iidx, claims in enumerate(lexically_deduplicated_claims)
+            ]
             
-        ste_filtered_claims = [
-            [claim for cidx, claim in enumerate(claims) if sent_entailment_scores[iidx_cidx_to_id[(iidx, cidx)]] > 0.5]
-            for iidx, claims in enumerate(lexically_deduplicated_claims)
-        ]
+        else:
+            ste_filtered_claims = lexically_deduplicated_claims
         
         iidx_pair_to_id = {}
         pairs = []
@@ -189,14 +202,11 @@ class CorePostProcessor(BasePostProcessor):
             for claims in ste_filtered_claims
         ]
         
-        pairwise_filtered_claims = [
-            [
-                claims[selection_indices]
-                for selection_indices in np.nonzero(
-                    solve_milp(pairwise_mat_, weightings_)[0]
-                )[0].tolist()
-            ]
-            for pairwise_mat_, weightings_, claims in zip(pairwise_mat, weightings, ste_filtered_claims)
+        selection_indices = [
+            np.nonzero(
+                solve_milp(pairwise_mat_, weightings_)[0]
+            )[0].tolist()
+            for pairwise_mat_, weightings_ in zip(pairwise_mat, weightings)
         ]
         
         # create new instances
@@ -204,8 +214,21 @@ class CorePostProcessor(BasePostProcessor):
             DecomposedLLMGenerationInstance(
                 id_=instance.id_,
                 generation=instance.generation,
-                claims=claims,
-                meta={**instance.meta, f"{self._namespace}": {"ratio": len(claims) / len(instance.claims)}}
+                claims=[
+                    claims[s] for s in sindices
+                ],
+                meta={**instance.meta, f"{self._namespace}": {
+                    "ratio": len(claims) / len(instance.claims),
+                    "selected_indices": sindices,
+                    "original_claims": [
+                        {
+                            # flatten
+                            "index": claim.meta['claim_index'],
+                            "text": claim.claim,
+                        }
+                        for claim in instance.claims
+                    ]
+                }}
             )
-            for instance, claims in zip(instances, pairwise_filtered_claims)
+            for instance, sindices, claims in zip(instances, selection_indices, ste_filtered_claims)
         ]

@@ -84,26 +84,8 @@ class FActScoreDecomposer(BaseDecomposer):
                     }
                     example_selector.add_example(example)
 
-        self._agent = RunnableParallel(
-            passthrough=RunnablePassthrough(),
-            decomposition=RunnableLambda(lambda x: {"input": x["input"]}) | DecompositionStep(example_selector=example_selector).chain_llm(
-                self._llm
-            )
-        ) | RunnableLambda(lambda x: DecomposedLLMGenerationInstance(
-                id_=x['passthrough']['instance_id'],
-                generation=x['passthrough']['generation'],
-                meta=x['passthrough']['meta'],
-                claims=[
-                    AtomicClaim(
-                        claim=atom,
-                        meta={
-                            "claim_index": aidx,
-                            "source_text": x["passthrough"]["input"],
-                            "source_text_index": x['passthrough']['in_instance_id'],
-                        },
-                    ) for aidx, atom in enumerate(x['decomposition'].claims)
-                ]
-            )
+        self._agent = DecompositionStep(example_selector=example_selector).chain_llm(
+            self._llm
         )
         self._runnable_config = RunnableConfig(max_concurrency=32)
 
@@ -120,61 +102,94 @@ class FActScoreDecomposer(BaseDecomposer):
         outputs = []
         inputs = [{
             "input": instance_text,
-            "instance_id": instance.id_,
-            "generation": instance.generation,
-            "meta": instance.meta,
-            "in_instance_id": 0,
+            # "instance_id": instance.id_,
+            # "generation": instance.generation,
+            # "meta": instance.meta,
+            # "in_instance_id": 0,
         }]
 
         if self._sentencize:
             inputs = [
                 {
                     "input": sentence.text,
-                    "instance_id": instance.id_,
-                    "generation": instance.generation,
-                    "meta": instance.meta,
-                    "in_instance_id": sidx,
+                    # "instance_id": instance.id_,
+                    # "generation": instance.generation,
+                    # "meta": instance.meta,
                 } for sidx, sentence in enumerate(self._nlp(instance_text).sents)
             ]
 
-        return self._agent.batch(inputs, config=self._runnable_config)
+        responses = self._agent.batch(inputs, config=self._runnable_config)
+        atomic_claims = []
+
+        for ipt, response in zip(inputs, responses):
+            for claim in response.claims:
+                claim_index = len(atomic_claims)
+                atomic_claims.append(AtomicClaim(
+                    claim=claim,
+                    meta={
+                        "source_text": ipt['input'],
+                        "claim_index": claim_index,
+                    }
+                ))
+                
+        return DecomposedLLMGenerationInstance(
+            id_=instance.id_,
+            generation=instance.generation,
+            meta=instance.meta,
+            claims=atomic_claims,
+        )
 
     @overrides
     def _batch_decompose(
         self, instances: Iterable[LLMGenerationInstance]
     ) -> Iterable[DecomposedLLMGenerationInstance]:
         """ """
+        
+        inputs = []
+        iidx_sidx_to_id = {}
+        lengths = []
 
         if not self._sentencize:
-            # inputs = [
-            #     {"input": instance.generation} for idx, instance in enumerate(instances)
-            # ]
-            # num_sents = [1 for _ in instances]
-            def _naiive_generator():
-                for ipt in instances:
-                    yield {
-                        "generation": ipt.generation,
-                        "meta": ipt.meta,
-                        "input": ipt.generation,
-                        "instance_id": ipt.id_,
-                        "in_instance_id": None,
-                    }
-            inputs = list(_naiive_generator())
-            
+            for iidx, instance in enumerate(instances):
+                iidx_sidx_to_id[(iidx, 0)] = len(inputs)
+                inputs.append({
+                    "input": instance.generation,
+                })
+                lengths.append(1)
         else:
-            
-            def _sentencized_generator():
-                for idx, instance in enumerate(instances):
-                    for sidx, sentence in enumerate(self._nlp(instance.generation).sents):
-                        yield {
-                            "generation": instance.generation,
-                            "meta": instance.meta,
-                            "input": sentence.text,
-                            "instance_id": idx,
-                            "in_instance_id": sidx,
-                        }
-                        
-            inputs = list(_sentencized_generator())
+            for iidx, instance in enumerate(instances):
+                sents = list(self._nlp(instance.generation).sents)
+                lengths.append(len(sents))
+                for sidx, sentence in enumerate(sents):
+                    iidx_sidx_to_id[(iidx, sidx)] = len(inputs)
+                    inputs.append({
+                        "input": sentence.text,
+                    })
 
-        # TODO: have tasker to support streaming outputs
-        return self._agent.batch(inputs, config=self._runnable_config)
+        responses = self._agent.batch(inputs, config=self._runnable_config)
+        
+        outputs = []
+        
+        for iidx, (instance, lil) in enumerate(zip(instances, lengths)):
+            atomic_claims = []
+            for sidx in range(lil):
+                response = responses[iidx_sidx_to_id[(iidx, sidx)]]
+                for claim in response.claims:
+                    claim_index = len(atomic_claims)
+                    atomic_claims.append(AtomicClaim(
+                        claim=claim,
+                        meta={
+                            "source_text": inputs[iidx_sidx_to_id[(iidx, sidx)]]['input'],
+                            "claim_index": claim_index,
+                        }
+                    ))
+            outputs.append(
+                DecomposedLLMGenerationInstance(
+                    id_=instance.id_,
+                    generation=instance.generation,
+                    meta=instance.meta,
+                    claims=atomic_claims,
+                )
+            )
+            
+        return outputs

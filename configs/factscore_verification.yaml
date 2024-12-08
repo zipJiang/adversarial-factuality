@@ -1,0 +1,17 @@
+type: "verification"
+input_dir: "data/task_outputs/factscore_core_processing/"
+output_dir: "data/task_outputs/factscore_core_verification/"
+verifier:
+  type: "factscore-verifier"
+  model_name: "mistralai/Mistral-7B-Instruct-v0.2"
+  retriever:
+    type: "wikidoc"
+    db_path: "db/enwiki-20230401.db"
+    cache_path: "db/.cache/bios.cache"
+    embed_cache_path: "db/bios.embed.cache"
+    batch_size: 32
+  base_url: "http://localhost:9871/v1"
+  api_key: "token-abc123"
+  aggregator: "factscore"
+dependencies:
+  post_processing: "configs/factscore_core_post_processing.yaml"
