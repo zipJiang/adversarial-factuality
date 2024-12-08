@@ -38,7 +38,7 @@ class BaseTemplate(ABC, Registrable):
         return self._render(instance)
     
     @abstractmethod
-    def _render(self, template: Text) -> Dict[Text, Text]:
+    def _render(self, instance: Instance) -> Text:
         """ """
         raise NotImplementedError("This method must be implemented in the subclass.")
     

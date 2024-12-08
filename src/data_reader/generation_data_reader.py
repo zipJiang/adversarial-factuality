@@ -15,7 +15,7 @@ from .base_data_reader import BaseDataReader
 class GenerationDataReader(BaseDataReader):
     """ The expected data format is as follows:
     {
-        "id": "unique identifier of the instance",
+        "id_": "unique identifier of the instance",
         "generation": "the generation text",
         ... // Any other fields that will be packed into 'meta'
     }
@@ -28,7 +28,8 @@ class GenerationDataReader(BaseDataReader):
         item = json.loads(line)
         
         generation = item.pop("generation", None)
-        id_ = item.pop("id", None)
+        id_ = item.pop("id_", None)
+        meta = item.pop("meta", {})
         
         assert generation is not None, "Generation text is not provided."
         assert id_ is not None, "ID is not provided."
@@ -36,5 +37,5 @@ class GenerationDataReader(BaseDataReader):
         return LLMGenerationInstance(
             id_=id_,
             generation=generation,
-            meta=item
+            meta={**item, **meta}
         )

@@ -20,7 +20,7 @@ import logging
 logger = logging.getLogger(__name__)
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger.setLevel(logging.INFO)
-handler = logging.FileHandler("sent_checkworthiness_post_processor.log")
+handler = logging.FileHandler("logs/sent_checkworthiness_post_processor.log")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
@@ -34,7 +34,7 @@ class SentCheckworthinessPostProcessor(BasePostProcessor):
         base_url: Optional[Text] = None,
         api_key: Optional[Text] = None
     ):
-        super().__init__(namespace="sent-checkworthiness")
+        super().__init__(namespace="__sent-checkworthiness")
         self._model_name = model_name
         self._base_url = base_url
         self._api_key = api_key
@@ -56,11 +56,10 @@ class SentCheckworthinessPostProcessor(BasePostProcessor):
             generation=RunnableLambda(
                 lambda x: {
                     "texts": x['texts']
-                } | SentCheckworthinessStep().chain_llm(self._llm)
-            )
+                }) | SentCheckworthinessStep().chain_llm(self._llm)
         ) | RunnableLambda(
             lambda x: {
-                sent: x['generation'].parsed[sidx] if sidx < len(x['generation'].parsed) else x['generation'].parsed[-1] 
+                sent: x['generation'].checkworthiness[sidx] if sidx < len(x['generation'].checkworthiness) else x['generation'].checkworthiness[-1]
                 for sidx, sent in enumerate(x['passthrough']['sents'])
             }
         )
@@ -113,8 +112,8 @@ class SentCheckworthinessPostProcessor(BasePostProcessor):
     @overrides
     def _batch_process(
         self,
-        instances: List[DecomposedLLMGenerationInstance]
-    ) -> List[DecomposedLLMGenerationInstance]:
+        instances: Iterable[DecomposedLLMGenerationInstance]
+    ) -> Iterable[DecomposedLLMGenerationInstance]:
         """ """
         
         dedup_inputs = set()

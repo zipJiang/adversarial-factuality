@@ -27,12 +27,13 @@ class BaseVerifier(ABC, Registrable):
                 return VerifiedLLMGenerationInstance(
                     id_=instance.id_,
                     generation=instance.generation,
-                    atomic_claims=[],
+                    claims=[],
                     meta=instance.meta,
                     aggregated_score=0.0
                 )
             return self._verify(instance)
         else:
+            instance = list(instance)
             selections = [idx for idx in range(len(instance)) if not instance[idx].meta.get("is_abstention", False)]
             input_instances = [instance[idx] for idx in selections]
             
@@ -41,7 +42,7 @@ class BaseVerifier(ABC, Registrable):
                 VerifiedLLMGenerationInstance(
                     id_=ins.id_,
                     generation=ins.generation,
-                    atomic_claims=[],
+                    claims=[],
                     meta=ins.meta,
                     aggregated_score=0.0
                 )

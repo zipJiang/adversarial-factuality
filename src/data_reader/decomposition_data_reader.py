@@ -18,7 +18,7 @@ from .base_data_reader import BaseDataReader
 class DecompositionDataReader(BaseDataReader):
     """ The expected data format is as follows:
     {
-        "id": "unique identifier of the instance",
+        "id_": "unique identifier of the instance",
         "generation": "the generation text",
         "claims": [
             ...
@@ -33,16 +33,18 @@ class DecompositionDataReader(BaseDataReader):
         
         item = json.loads(line)
         generation = item.pop("generation", None)
-        id_ = item.pop("id", None)
+        id_ = item.pop("id_", None)
         claims = item.pop("claims", None)
+        meta = item.pop("meta", {})
         atomic_claims = []
 
         for claim in claims:
             claim_text = claim.pop("claim", None)
+            claim_meta = claim.pop("meta", {})
             assert claim_text is not None, "Claim text is not provided."
             atomic_claims.append(AtomicClaim(
                 claim=claim_text,
-                meta=claim
+                meta={**claim, **claim_meta}
             ))
         
         assert generation is not None, "Generation text is not provided."
@@ -51,6 +53,6 @@ class DecompositionDataReader(BaseDataReader):
         return DecomposedLLMGenerationInstance(
             id_=id_,
             generation=generation,
-            meta=item,
+            meta={**item, **meta},
             claims=atomic_claims
         )

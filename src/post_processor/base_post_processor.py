@@ -20,12 +20,14 @@ class BasePostProcessor(ABC, Registrable):
         DecomposedLLMGenerationInstance, Iterable[DecomposedLLMGenerationInstance]
     ]:
         """ """
+        # print(f"instance {self._namespace}: ", instance)
 
         if isinstance(instance, DecomposedLLMGenerationInstance):
             if instance.meta.get("is_abstention", False):
                 return self._process(instance)
             return instance
-
+        
+        instance = list(instance)
         selections = [
             idx
             for idx in range(len(instance))

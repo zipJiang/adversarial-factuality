@@ -177,7 +177,7 @@ class CorePostProcessor(BasePostProcessor):
                 ]
                 for i in range(len(claims))
             ], dtype=np.int16)
-            for claims in ste_filtered_claims
+            for iidx, claims in enumerate(ste_filtered_claims)
         ]
         
         weightings = [

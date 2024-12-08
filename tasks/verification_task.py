@@ -5,6 +5,7 @@ try:
 except ImportError:
     import json
 import os
+import numpy as np
 from glob import glob
 from overrides import overrides
 from typing import (
@@ -21,6 +22,7 @@ from src.utils.common import (
 )
 
 
+@BaseTask.register("verification")
 class VerificationTask(BaseTask):
     """ """
     __VERSION__ = "0.0.1"
@@ -47,18 +49,29 @@ class VerificationTask(BaseTask):
         
         max_line_per_file = int(os.getenv("MAX_LINE_PER_FILE", __MAX_LINE_PER_FILE__))
         num_written_files = 0
+        agg_scores = []
         
         def counted_write(items):
-            with open(os.path.join(self._output_dir, f"decomposition-{num_written_files:08d}.jsonl")) as file_:
+            nonlocal num_written_files
+            nonlocal agg_scores
+            with open(os.path.join(self._output_dir, f"decomposition-{num_written_files:08d}.jsonl"), 'w') as file_:
                 for item in items:
+                    agg_scores.append(item.aggregated_score)
                     file_.write(
                         json.dumps(item.to_dict()) + "\n"
                     )
                     
             num_written_files += 1
         
-        stream_paginate_func(
+        list(stream_paginate_func(
             items=outputs,
             page_size=max_line_per_file,
             func=counted_write,
-        )
+        ))
+
+        # also calculate the average score to write to a separate file
+        with open(os.path.join(self._output_dir, "agg_scores.json"), "w") as file_:
+            json.dump({
+                "average_score": np.mean(agg_scores),
+                "breakdown": agg_scores
+            }, file_, indent=4)

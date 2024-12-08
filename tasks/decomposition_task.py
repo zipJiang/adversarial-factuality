@@ -22,7 +22,7 @@ from src.utils.common import (
 class DecompositionTask(BaseTask):
     """ """
     
-    __VERSION__ = "0.0.1"
+    __VERSION__ = "0.0.2"
 
     def __init__(self, input_dir: Text, output_dir: Text, decomposer: BaseDecomposer):
         super().__init__(output_dir=output_dir)
@@ -49,7 +49,8 @@ class DecompositionTask(BaseTask):
         num_written_files = 0
         
         def counted_write(items):
-            with open(os.path.join(self._output_dir, f"decomposition-{num_written_files:08d}.jsonl")) as file_:
+            nonlocal num_written_files
+            with open(os.path.join(self._output_dir, f"decomposition-{num_written_files:08d}.jsonl"), 'w') as file_:
                 for item in items:
                     file_.write(
                         json.dumps(item.to_dict()) + "\n"
@@ -57,8 +58,8 @@ class DecompositionTask(BaseTask):
                     
             num_written_files += 1
         
-        stream_paginate_func(
+        list(stream_paginate_func(
             items=outputs,
             page_size=max_line_per_file,
             func=counted_write,
-        )
+        ))

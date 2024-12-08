@@ -21,10 +21,11 @@ from src.utils.common import (
 )
 
 
+@BaseTask.register("post-processing")
 class PostProcessingTask(BaseTask):
     """ """
     
-    __VERSION__ = "0.0.1"
+    __VERSION__ = "0.0.3"
 
     def __init__(
         self,
@@ -43,6 +44,7 @@ class PostProcessingTask(BaseTask):
         current_iterator = self._reader(glob(os.path.join(self._input_dir, "*.jsonl")))
 
         for post_processor in self._post_processors:
+            # print(post_processor._namespace)
             current_iterator = post_processor(current_iterator)
             
         return current_iterator
@@ -54,7 +56,8 @@ class PostProcessingTask(BaseTask):
         num_written_files = 0
         
         def counted_write(items):
-            with open(os.path.join(self._output_dir, f"post-processed-{num_written_files:08d}.jsonl")) as file_:
+            nonlocal num_written_files
+            with open(os.path.join(self._output_dir, f"post-processed-{num_written_files:08d}.jsonl"), 'w') as file_:
                 for item in items:
                     file_.write(
                         json.dumps(item.to_dict()) + "\n"
@@ -62,10 +65,10 @@ class PostProcessingTask(BaseTask):
                     
             num_written_files += 1
         
-        stream_paginate_func(
+        list(stream_paginate_func(
             items=outputs,
             func=counted_write,
-            max_line_per_file=max_line_per_file
-        )
+            page_size=max_line_per_file
+        ))
         
         return num_written_files

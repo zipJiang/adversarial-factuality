@@ -20,17 +20,19 @@ class BaseDecomposer(ABC, Registrable):
     ) -> Union[Iterable[DecomposedLLMGenerationInstance], DecomposedLLMGenerationInstance]:
         """ """
         if not isinstance(instance, LLMGenerationInstance):
+            instance = list(instance)  # convert to list to make it flexible
             selections = [
-                idx for idx in range(len(instance)) if not instance[idx].meta.get("is_abstention", False)
+                (idx, ins) for idx, ins in enumerate(instance) if not ins.meta.get("is_abstention", False)
             ]
-            input_instances = [instance[idx] for idx in selections]
+            input_instances = [ins for _, ins in selections]
+            selections = [idx for idx, _ in selections]
             decomposed_instances = self._batch_decompose(input_instances)
-            
+
             placeholders = [
                 DecomposedLLMGenerationInstance(
                     id_=ins.id_,
                     generation=ins.generation,
-                    atomic_claims=[],
+                    claims=[],
                     meta=ins.meta,
                 )
                 for ins in instance
@@ -45,7 +47,7 @@ class BaseDecomposer(ABC, Registrable):
             return DecomposedLLMGenerationInstance(
                 id_=instance.id_,
                 generation=instance.generation,
-                atomic_claims=[],
+                claims=[],
                 meta=instance.meta,
             )
 

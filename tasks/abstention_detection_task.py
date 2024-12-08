@@ -20,8 +20,12 @@ from src.utils.common import (
 )
 
 
+@BaseTask.register("abstention-detection")
 class AbstentionDetectionTask(BaseTask):
     """ """
+    
+    __VERSION__ = "0.0.5"
+    
     def __init__(self, input_dir: Text, output_dir: Text, abstention_detector: BaseAbstentionDetector):
         super().__init__(output_dir=output_dir)
         self._input_dir = input_dir
@@ -45,9 +49,7 @@ class AbstentionDetectionTask(BaseTask):
                 }
             )
             for instance in self._reader(
-                instance=self._reader(
-                    file_paths=glob(os.path.join(self._input_dir, "*.jsonl"))
-                )
+                file_paths=glob(os.path.join(self._input_dir, "*.jsonl"))
             )
         ]
         
@@ -57,19 +59,25 @@ class AbstentionDetectionTask(BaseTask):
     def _write(self, outputs):
         
         max_line_per_file = int(os.getenv("MAX_LINE_PER_FILE", __MAX_LINE_PER_FILE__))
-        num_written_files = 0
         
-        def counted_write(items):
-            with open(os.path.join(self._output_dir, f"decomposition-{num_written_files:08d}.jsonl")) as file_:
-                for item in items:
-                    file_.write(
-                        json.dumps(item.to_dict()) + "\n"
-                    )
-                    
-            num_written_files += 1
+        def _make_counted_writer():
+            num_written_files = 0
+            def counted_write(items):
+                nonlocal num_written_files
+                with open(os.path.join(self._output_dir, f"abstention-detection-{num_written_files:08d}.jsonl"), 'w') as file_:
+                    for item in items:
+                        file_.write(
+                            json.dumps(item.to_dict()) + "\n"
+                        )
+                        
+                num_written_files += 1
+                
+            return counted_write
         
-        stream_paginate_func(
+        _counted_write = _make_counted_writer()
+        
+        list(stream_paginate_func(
             items=outputs,
             page_size=max_line_per_file,
-            func=counted_write,
-        )
+            func=_counted_write,
+        ))

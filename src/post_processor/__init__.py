@@ -2,3 +2,4 @@ from .base_post_processor import BasePostProcessor
 from .core_post_processor import CorePostProcessor
 from .decontextualization_post_processor import DecontextualizationPostProcessor
 from .sent_checkworthiness_post_processor import SentCheckworthinessPostProcessor
+from .claim_checkworthiness_post_proessor import ClaimCheckworthinessPostProcessor

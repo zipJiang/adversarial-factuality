@@ -20,8 +20,14 @@ from .base_post_processor import BasePostProcessor
 
 
 logger = logging.getLogger(__name__)
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logger.setLevel(logging.INFO)
+handler = logging.FileHandler("logs/sent_checkworthiness_post_processor.log")
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 
+@BasePostProcessor.register("decontextualization")
 class DecontextualizationPostProcessor(BasePostProcessor):
     """Take a sentence and make it standalone."""
 
@@ -54,21 +60,6 @@ class DecontextualizationPostProcessor(BasePostProcessor):
 
         self._agent = DecontextualizationStep().chain_llm(self._llm)
 
-    def __call__(
-        self,
-        instance: Union[DecomposedLLMGenerationInstance, Iterable[DecomposedLLMGenerationInstance]],
-    ) -> Union[DecomposedLLMGenerationInstance, Iterable[DecomposedLLMGenerationInstance]]:
-        """This will decontextualize the instances, and return
-        the decontextualized version paired with the correct information.
-        """
-        
-        if not isinstance(instance, DecomposedLLMGenerationInstance):
-            result = self._batch_process(instances=instance)
-        else:
-            result = self._process(instance=instance)
-                
-        return result
-        
     @overrides
     def _process(self, instance: DecomposedLLMGenerationInstance) -> DecomposedLLMGenerationInstance:
         """ """
@@ -102,7 +93,7 @@ class DecontextualizationPostProcessor(BasePostProcessor):
         )
     
     @overrides
-    def _batch_decontextualize(
+    def _batch_process(
         self,
         instances: Iterable[DecomposedLLMGenerationInstance]
     ) -> Iterable[DecomposedLLMGenerationInstance]:
@@ -132,7 +123,7 @@ class DecontextualizationPostProcessor(BasePostProcessor):
                         meta={
                             **claim.meta,
                             f"{self._namespace}": {
-                                "raw": results[iidx_cidx_to_id[(idx, cidx)]]["messages"],
+                                "raw": results[iidx_cidx_to_id[(idx, cidx)]].messages,
                                 "original": claim.claim,
                             }
                         },

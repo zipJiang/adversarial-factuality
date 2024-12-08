@@ -4,7 +4,7 @@ import numpy as np
 from typing import Text, Optional, Dict, Tuple, List, Iterable
 from overrides import overrides
 from ..entailer import BaseEntailer, EntailerInstance
-from ..utils.template import Template
+from ..utils.template import ClaimFormattingTemplate
 from ..utils.instances import DecomposedLLMGenerationInstance, AtomicClaim
 from ..utils.common import path_index, solve_milp
 from ..utils.template import BaseTemplate
@@ -28,7 +28,7 @@ class ClaimCheckworthinessPostProcessor(BasePostProcessor):
 
     def __init__(
         self,
-        bleached_templates: List[BaseTemplate],
+        bleached_templates: List[Text],
         entailer: BaseEntailer,
         cap_entailer: Optional[BaseEntailer] = None,
         epsilon: float = 1e-3,
@@ -39,7 +39,7 @@ class ClaimCheckworthinessPostProcessor(BasePostProcessor):
 
         super().__init__(namespace="__claim-checkworthiness")
 
-        self._bleached_templates = bleached_templates
+        self._bleached_templates = [ClaimFormattingTemplate(template=t) for t in bleached_templates]
         self._entailer = entailer
         self._cap_entailer = cap_entailer
         self._epsilon = epsilon
@@ -55,7 +55,10 @@ class ClaimCheckworthinessPostProcessor(BasePostProcessor):
         # pair each bleached_context with the claim
         # and score each pair
         inputs = [
-            bleached_template(claim)
+            EntailerInstance(
+                premise=bleached_template(claim),
+                hypothesis=claim.claim
+            )
             for claim in instance.claims
             for bleached_template in self._bleached_templates
         ]
@@ -75,7 +78,7 @@ class ClaimCheckworthinessPostProcessor(BasePostProcessor):
                 len(instance.claims), len(self._bleached_templates)
             )
             cap_scores = np.max(cap_scores, axis=1)
-            cap_scores = np.maximum(cap_scores, self._epsilon)
+            # cap_scores = np.maximum(cap_scores, self._epsilon)
             scores = np.maximum(scores, cap_scores)
             for i in range(len(instance.claims)):
                 cap_entailer_outputs[i]["cap_score"] = cap_scores[i].item()
@@ -117,7 +120,12 @@ class ClaimCheckworthinessPostProcessor(BasePostProcessor):
             for cidx, claim in enumerate(instance.claims):
                 iidx_cidx_to_id[(iidx, cidx)] = len(inputs) // len(self._bleached_templates)
                 for bleached_template in self._bleached_templates:
-                    inputs.append(bleached_template(claim))
+                    inputs.append(
+                        EntailerInstance(
+                            premise=bleached_template(claim),
+                            hypothesis=claim.claim
+                        )
+                    )
                     
         scores = self._entailer(inputs, desc="UNLI Scoring")
         scores = np.array(scores).reshape(-1, len(self._bleached_templates))
@@ -125,16 +133,18 @@ class ClaimCheckworthinessPostProcessor(BasePostProcessor):
         # Adding lowerbound to cap_score to avoid log(0)
         scores = np.maximum(scores, self._epsilon)
 
-        cap_entailer_outputs = [{} for _ in range(scores.shape(0))]
+        cap_entailer_outputs = [{} for _ in range(scores.shape[0])]
         
         if self._cap_entailer is not None:
             cap_scores = self._cap_entailer(inputs, desc="Cap Scoring")
             cap_scores = np.array(cap_scores).reshape(-1, len(self._bleached_templates))
             cap_scores = np.max(cap_scores, axis=1)
-            cap_scores = np.maximum(cap_scores, self._epsilon)
+            # cap_scores = np.maximum(cap_scores, self._epsilon)
             scores = np.maximum(scores, cap_scores)
             for i in range(len(cap_entailer_outputs)):
                 cap_entailer_outputs[i]["cap_score"] = cap_scores[i].item()
+
+        parsed_scores = (-np.log(scores) - self._epsilon).tolist()
                 
         return [
             DecomposedLLMGenerationInstance(
@@ -147,7 +157,7 @@ class ClaimCheckworthinessPostProcessor(BasePostProcessor):
                         meta={
                             **claim.meta,
                             f"{self._namespace}": {
-                                "score": scores[iidx_cidx_to_id[(iidx, cidx)]],
+                                "score": parsed_scores[iidx_cidx_to_id[(iidx, cidx)]],
                                 **(cap_entailer_outputs[iidx_cidx_to_id[(iidx, cidx)]]),
                             }
                         },

@@ -21,6 +21,7 @@ from .base_verifier import BaseVerifier
 from ..retriever import Retriever
 
 
+@BaseVerifier.register("factscore-verifier")
 class FActScoreVerifier(BaseVerifier):
     def __init__(
         self,
@@ -59,13 +60,13 @@ class FActScoreVerifier(BaseVerifier):
         """ """
         
         inputs = []
+        assert 'topic' in instance.meta, "The instance must have a topic."
         
         for claim in instance.claims:
-            assert 'topic' in claim.meta, "The claim must have a topic."
-            passages = self._retriever.get_passages(topic=claim.meta['topic'], text=claim.claim, n=5)
+            passages = self._retriever.get_passages(topic=instance.meta['topic'], text=claim.claim, n=5)
             
             input_instance = {
-                "topic": claim.meta['topic'],
+                "topic": instance.meta['topic'],
                 "parsed_passages": "\n\n".join(
                     [
                         f"Title: {passage['title']} Text: {passage['text']}"
@@ -106,12 +107,12 @@ class FActScoreVerifier(BaseVerifier):
         retrieval_questions = []
         retrieval_topics = []
         
-        for instance in instances:
-            for claim in instance.claims:
-                assert 'topic' in claim.meta, "The claim must have a topic."
-                iidx_cidx_to_id[(instance.id_, claim.id_)] = len(retrieval_questions)
+        for iidx, instance in enumerate(instances):
+            assert 'topic' in instance.meta, "The instance must have a topic."
+            for cidx, claim in enumerate(instance.claims):
+                iidx_cidx_to_id[(iidx, cidx)] = len(retrieval_questions)
                 retrieval_questions.append(claim.claim)
-                retrieval_topics.append(claim.meta['topic'])
+                retrieval_topics.append(instance.meta['topic'])
                 
         passage_chunks = self._retriever.get_passages_batched(
             topics=retrieval_topics, questions=retrieval_questions, k=5
@@ -148,6 +149,12 @@ class FActScoreVerifier(BaseVerifier):
                     )
                     for cidx, claim in enumerate(instance.claims)
                 ],
+                aggregated_score=self._aggregator(
+                    [
+                        responses[iidx_cidx_to_id[(iidx, cidx)]].evidential_support
+                        for cidx, claim in enumerate(instance.claims)
+                    ]
+                )
             )
             for iidx, instance in enumerate(instances)
         ]
