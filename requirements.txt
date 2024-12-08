@@ -14,3 +14,4 @@ torch==2.0.1
 tqdm==4.66.2
 transformers==4.39.3
 ujson==5.10.0
+streamlit==1.40.2
