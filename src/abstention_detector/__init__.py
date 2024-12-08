@@ -1,2 +1,2 @@
-from .abstention_detector import AbstentionDetector
+from .base_abstention_detector import BaseAbstentionDetector
 from .factscore_abstention_detector import FActScoreAbstentionDetector

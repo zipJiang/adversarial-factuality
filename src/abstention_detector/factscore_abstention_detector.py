@@ -5,11 +5,11 @@ from overrides import overrides
 import re
 import numpy as np
 from typing import Text
-from .abstention_detector import AbstentionDetector
+from .base_abstention_detector import BaseAbstentionDetector
 
 
-@AbstentionDetector.register("factscore")
-class FActScoreAbstentionDetector(AbstentionDetector):
+@BaseAbstentionDetector.register("factscore")
+class FActScoreAbstentionDetector(BaseAbstentionDetector):
     def __init__(self):
         super().__init__()
         

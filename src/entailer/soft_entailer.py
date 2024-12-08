@@ -1,15 +1,15 @@
 """ Soft Entailer calculates p(h|p) instead of ternary classification. """
 
 
-from .entailer import Entailer, EntailerInstance
+from .base_entailer import BaseEntailer, EntailerInstance
 from overrides import overrides
 import torch
 from typing import Text, List, Optional
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 
-@Entailer.register("soft-entailer")
-class SoftEntailer(Entailer):
+@BaseEntailer.register("soft-entailer")
+class SoftEntailer(BaseEntailer):
     def __init__(
         self,
         model_name: Text,
