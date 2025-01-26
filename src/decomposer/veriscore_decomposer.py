@@ -1,13 +1,13 @@
-"""Replicate the FactScore Decomposer
-that takes in a summary and decomposes it into
-atomic facts.
+"""Implement a VeriScore Decomposer that takes in
+generation and exetract "Verifiable" claims.
 """
 
 import spacy
+import re
 import json
 from overrides import overrides
 from typing import List, Text, Optional, Tuple, Iterable
-from langchain_openai import ChatOpenAI
+from langchain_openai import OpenAI, ChatOpenAI
 from langchain_core.runnables.config import RunnableConfig
 from langchain_core.runnables import (
     RunnableBranch,
@@ -26,31 +26,31 @@ from ..utils.instances import (
 #     FActScoreEvidentialSupportStep,
 #     FActScoreEvidentialSupportResponse
 # )
-from langchain_interface.steps.decomposition_step import (
-    DecompositionStep,
-    DecompositionResponse,
+from ..langchain_step.veriscore_extraction_step import (
+    VeriScoreExtractionStep,
+    VeriScoreExtractionResponse
 )
 from .base_decomposer import BaseDecomposer
 
 
-@BaseDecomposer.register("factscore")
-class FActScoreDecomposer(BaseDecomposer):
-
-    __NAME__ = "factscore"
-
+@BaseDecomposer.register("veriscore")
+class VeriScoreDecomposer(BaseDecomposer):
+    """Notice that this decomposer uses a OpenAI Completion
+    instead of ChatOpenAI.
+    """
+    __NAME__ = "veriscore"
+    
     def __init__(
         self,
         model_name: Text,
+        question_template: Text,
         nlp_model_name: Text = "en_core_web_sm",
         sentencize: bool = True,
         base_url: Optional[Text] = None,
         api_key: Optional[Text] = None,
         example_path: Optional[Text] = None,
     ):
-        """In general, this decomposer runs a sentence splitter,
-        and then a atomic fact extractor to get the atomic facts.
-        """
-
+        """ """
         super().__init__()
         self._example_path = example_path
         self._model_name = model_name
@@ -59,42 +59,28 @@ class FActScoreDecomposer(BaseDecomposer):
         self._nlp = spacy.load(nlp_model_name, disable=["ner", "parser"])
         self._nlp.add_pipe("sentencizer")
         self._sentencize = sentencize
-
-        self._llm = ChatOpenAI(
-            model_name=self._model_name,
+        
+        self._llm = OpenAI(
+            model=self._model_name,
             base_url=self._base_url,
             api_key=self._api_key,
-            # max_tokens=512,
+            max_tokens=1500,
             # top_p=0.98,
             model_kwargs={"top_p": 0.98},
             temperature=0.0,
         )
 
-        example_selector = None
-        if example_path is not None:
-
-            example_selector = ConstantExampleSelector()
-            with open(example_path, "r", encoding="utf-8") as file_:
-                items = file_.read().split("\n\n")
-                for item in items:
-                    lines = item.split("\n")
-                    example = {
-                        "input": lines[0],
-                        "output": "\n".join(lines[1:]),
-                    }
-                    example_selector.add_example(example)
-
-        self._agent = DecompositionStep(example_selector=example_selector).chain_llm(
-            self._llm
-        )
+        self._agent = VeriScoreExtractionStep().chain_llm(self._llm)
         self._runnable_config = RunnableConfig(max_concurrency=32)
 
+        self._question_template = question_template
+        
     @overrides
     def _decompose(
         self, instance: LLMGenerationInstance
     ) -> DecomposedLLMGenerationInstance:
-        """ """
-
+        """ One major differences is that we need sentence before and after. """
+        
         instance_text = instance.generation
         # previously we explicitly read topic, but now it will be packed
         # into the instance meta
@@ -102,21 +88,21 @@ class FActScoreDecomposer(BaseDecomposer):
         outputs = []
         inputs = [{
             "input": instance_text,
-            # "instance_id": instance.id_,
-            # "generation": instance.generation,
-            # "meta": instance.meta,
-            # "in_instance_id": 0,
         }]
-
+        
+        sents = self._nlp(instance_text).sents
+        
         if self._sentencize:
             inputs = [
                 {
-                    "input": sentence.text,
-                    # "instance_id": instance.id_,
-                    # "generation": instance.generation,
-                    # "meta": instance.meta,
-                } for sidx, sentence in enumerate(self._nlp(instance_text).sents)
+                    "input": instance_text.replace(sentence.text, f"<SOS>{sentence.text}<EOS>"),
+                    "question": self.question_template.format(topic=instance.meta["topic"]),
+                } for sidx, sentence in enumerate(sents)
             ]
+            
+        else:
+            # Since we need sentencizing information to proceed
+            raise NotImplementedError("Not implemented yet.")
 
         responses = self._agent.batch(inputs, config=self._runnable_config)
         atomic_claims = []
@@ -127,35 +113,29 @@ class FActScoreDecomposer(BaseDecomposer):
                 atomic_claims.append(AtomicClaim(
                     claim=claim,
                     meta={
-                        "source_text": ipt['input'],
+                        "source_text": re.search(r"<SOS>(.*)<EOS>", ipt['input'], flags=re.DOTALL).group(1),
                         "claim_index": claim_index,
                     }
                 ))
-                
+
         return DecomposedLLMGenerationInstance(
             id_=instance.id_,
             generation=instance.generation,
             meta=instance.meta,
             claims=atomic_claims,
         )
-
+        
     @overrides
     def _batch_decompose(
         self, instances: Iterable[LLMGenerationInstance]
     ) -> Iterable[DecomposedLLMGenerationInstance]:
         """ """
-        
         inputs = []
         iidx_sidx_to_id = {}
         lengths = []
 
         if not self._sentencize:
-            for iidx, instance in enumerate(instances):
-                iidx_sidx_to_id[(iidx, 0)] = len(inputs)
-                inputs.append({
-                    "input": instance.generation,
-                })
-                lengths.append(1)
+            raise NotImplementedError("Not implemented yet.")
         else:
             for iidx, instance in enumerate(instances):
                 sents = list(self._nlp(instance.generation).sents)
@@ -163,7 +143,8 @@ class FActScoreDecomposer(BaseDecomposer):
                 for sidx, sentence in enumerate(sents):
                     iidx_sidx_to_id[(iidx, sidx)] = len(inputs)
                     inputs.append({
-                        "input": sentence.text,
+                        "input": instance.generation.replace(sentence.text, f"<SOS>{sentence.text}<EOS>"),
+                        "question": self._question_template.format(topic=instance.meta["topic"]),
                     })
 
         responses = self._agent.batch(inputs, config=self._runnable_config)
@@ -179,7 +160,7 @@ class FActScoreDecomposer(BaseDecomposer):
                     atomic_claims.append(AtomicClaim(
                         claim=claim,
                         meta={
-                            "source_text": inputs[iidx_sidx_to_id[(iidx, sidx)]]['input'],
+                            "source_text": re.search(r"<SOS>(.*)<EOS>", inputs[iidx_sidx_to_id[(iidx, sidx)]]['input'], flags=re.DOTALL).group(1),
                             "claim_index": claim_index,
                         }
                     ))

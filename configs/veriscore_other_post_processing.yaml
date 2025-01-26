@@ -1,6 +1,6 @@
 type: "post-processing"
 input_dir: "data/task_outputs/veriscore_decomposition/"
-output_dir: "data/task_outputs/factscore_core_processing/"
+output_dir: "data/task_outputs/veriscore_other_processing/"
 post_processors:
   - type: "decontextualization"
     model_name: "mistralai/Mistral-7B-Instruct-v0.2"
@@ -33,14 +33,5 @@ post_processors:
     model_name: "mistralai/Mistral-7B-Instruct-v0.2"
     base_url: "http://localhost:9871/v1"
     api_key: "token-abc123"
-  - type: "core"
-    entailer:
-      type: "default"
-      model_name: "MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli"
-      max_length: 256
-      internal_batch_size: 32
-      cache_dir: ".cache/"
-    claim_checkworthiness_path: "meta::__claim-checkworthiness::score"
-    sent_checkworthiness_path: "meta::__sent-checkworthiness::score"
 dependencies:
   decomposition: "configs/veriscore_decomposition.yaml"

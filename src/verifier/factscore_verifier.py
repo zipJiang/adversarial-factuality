@@ -42,9 +42,9 @@ class FActScoreVerifier(BaseVerifier):
             model_name=self._model_name,
             base_url=self._base_url,
             api_key=self._api_key,
-            max_tokens=128,
+            # max_tokens=128,
             # top_p=0.98,
-            model_kwargs={"top_p": 0.98},
+            model_kwargs={"top_p": 0.98, "max_tokens": 128},
             temperature=0.0,
         )
         

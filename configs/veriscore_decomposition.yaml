@@ -1,0 +1,12 @@
+type: "decomposition"
+input_dir: "data/task_outputs/factscore_abstention/"
+output_dir: "data/task_outputs/veriscore_decomposition/"
+decomposer:
+  type: "veriscore"
+  model_name: "/brtx/605-nvme2/zpjiang/VeriScore/model"
+  question_template: "tell me something about {topic}."
+  sentencize: true
+  base_url: "http://localhost:9871/v1"
+  api_key: "token-abc123"
+dependencies:
+  abstention_detection: "configs/factscore_abstention_detection.yaml"

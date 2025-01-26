@@ -1,5 +1,5 @@
 type: "abstention-detection"
-input_dir: "examples/"
+input_dir: "data/inputs/"
 output_dir: "data/task_outputs/factscore_abstention/"
 abstention_detector:
   type: "factscore"
