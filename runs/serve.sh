@@ -9,7 +9,7 @@
 export PROJECT_DIR=/scratch/bvandur1/zjiang31/conformal-backoff/
 export TP_SIZE=1
 export PORT=9871
-export MODEL_NAME="mistralai/Mistral-7B-Instruct-v0.3"
+export MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
 
 
 while [[ $# -gt 0 ]]
